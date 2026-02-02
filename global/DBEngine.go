@@ -1,6 +1,9 @@
 package global
 
-import "xorm.io/xorm"
+import (
+	_ "github.com/go-sql-driver/mysql"
+	"xorm.io/xorm"
+)
 
 var (
 	Engine = Init()
