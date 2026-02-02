@@ -1,0 +1,42 @@
+# Go build and test artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.prof
+*.zip
+
+# Go workspace
+bin/
+pkg/
+
+# Go workspace (other common patterns)
+build/
+dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+
+# Env
+.env
+
+# Database
+*.db
+*.db-journal
+
+# Dependency managers
+node_modules/
+vendor/
