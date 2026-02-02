@@ -9,9 +9,9 @@ import (
 
 // JwtPayLoad JWT Payload 结构
 type JwtPayLoad struct {
-	UserID   uint   `json:"user_id"`  // 用户ID
-	Username string `json:"username"` // 用户名
-	Role     int    `json:"role"`     // 权限 1-普通用户 2-管理员
+	Id       int
+	Identity string
+	Name     string
 }
 
 // CustomClaims 自定义JWT声明
