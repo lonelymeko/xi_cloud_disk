@@ -1,0 +1,50 @@
+syntax = "v1"
+
+// 用户登录请求
+type LoginRequest {
+	Name     string `json:"name,optional"` // 用户名或邮箱
+	Password string `json:"password,optional"` // 密码
+}
+
+// 用户注册请求
+type RegisterRequest {
+	Name     string `json:"name,optional"` // 用户名
+	Email    string `json:"email,optional"` // 邮箱
+	Password string `json:"password,optional"` // 密码
+}
+
+// 登录响应
+type LoginResponse {
+	Token string `json:"token"`
+	Name  string `json:"name"`
+}
+
+// 注册响应
+type RegisterResponse {
+	Token string `json:"token"`
+	Name  string `json:"name"`
+}
+
+type UserDetailRequest {
+	Identity string `json:"identity"`
+}
+
+type UserDetailResponse {
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
+@server (
+	prefix: /api/users
+)
+service core-api {
+	@handler LoginHandler
+	post /login (LoginRequest) returns (LoginResponse)
+
+	@handler RegisterHandler
+	post /register (RegisterRequest) returns (RegisterResponse)
+
+	@handler UserDetailHandler
+	post /detail (UserDetailRequest) returns (UserDetailResponse)
+}
+

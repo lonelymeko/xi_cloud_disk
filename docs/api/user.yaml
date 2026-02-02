@@ -49,13 +49,35 @@ paths:
                 $ref: '#/components/schemas/RegisterResponse'
         '400':
           description: 请求参数错误（如用户名已存在、邮箱格式非法）
+  /detail:
+    post:
+      summary: 获取用户详情接口
+      description: 根据身份标识获取用户详细信息
+      operationId: UserDetailHandler
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserDetailRequest'
+      responses:
+        '200':
+          description: 获取用户详情成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDetailResponse'
+        '400':
+          description: 请求参数错误
+        '401':
+          description: 认证失败
 components:
   schemas:
     LoginRequest:
       type: object
       description: 用户登录请求参数
       properties:
-        username:
+        name:
           type: string
           description: 用户名或邮箱
           example: "zhangsan"
@@ -68,7 +90,7 @@ components:
       type: object
       description: 用户注册请求参数
       properties:
-        username:
+        name:
           type: string
           description: 用户名
           example: "zhangsan"
@@ -90,11 +112,11 @@ components:
           type: string
           description: 登录令牌（用于后续接口认证）
           example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-        username:
+        name:
           type: string
           description: 用户名
           example: "zhangsan"
-      required: [token, username]
+      required: [token, name]
       nullable: false
     RegisterResponse:
       type: object
@@ -104,9 +126,33 @@ components:
           type: string
           description: 注册成功令牌（用于后续接口认证）
           example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-        username:
+        name:
           type: string
           description: 用户名
           example: "zhangsan"
-      required: [token, username]
+      required: [token, name]
+      nullable: false
+    UserDetailRequest:
+      type: object
+      description: 用户详情请求参数
+      properties:
+        identity:
+          type: string
+          description: 用户身份标识
+          example: "user_identity_12345"
+      nullable: false
+    UserDetailResponse:
+      type: object
+      description: 用户详情响应结果
+      properties:
+        name:
+          type: string
+          description: 用户名
+          example: "zhangsan"
+        email:
+          type: string
+          format: email
+          description: 用户邮箱
+          example: "zhangsan@example.com"
+      required: [name, email]
       nullable: false

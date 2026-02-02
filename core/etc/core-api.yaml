@@ -1,0 +1,6 @@
+Name: core-api
+Host: 0.0.0.0
+Port: 8888
+Auth:
+  AccessSecret: abcdefgh
+  AccessExpire: 36000
