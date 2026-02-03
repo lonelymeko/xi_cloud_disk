@@ -64,19 +64,20 @@ func (l *RegisterLogic) Register(req *types.RegisterRequest) (resp *types.Regist
 		Identity: uuid, // 可以生成一个唯一标识
 	}
 	// 插入数据库
-	_, err = l.svcCtx.DBEngine.InsertOne(userModel)
+	affected, err := l.svcCtx.DBEngine.InsertOne(userModel)
 	if err != nil {
 		return nil, err
 	}
-	has, err = l.svcCtx.DBEngine.Where("name = ?", req.Name).Get(user)
-	if err != nil || user == nil {
-		return nil, err
+	if affected == 0 {
+		return nil, errors.New("用户创建失败")
 	}
-	// 生成token
+
+	// 直接使用插入的用户数据生成token，无需再次查询
+	// xorm 的 InsertOne 会自动将自增 ID 填充到 userModel.Id 中
 	token, err := utils.GenToken(utils.JwtPayLoad{
-		Id:       user.Id,
-		Identity: user.Identity,
-		Name:     user.Name,
+		Id:       userModel.Id,
+		Identity: userModel.Identity,
+		Name:     userModel.Name,
 	}, l.svcCtx.Config.Auth.AccessSecret, l.svcCtx.Config.Auth.AccessExpire)
 	if err != nil {
 		return nil, err

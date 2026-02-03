@@ -21,7 +21,7 @@ type ServiceContext struct {
 func NewServiceContext(c config.Config) *ServiceContext {
 	return &ServiceContext{
 		Config:      c,
-		DBEngine:    global.Engine,
-		RedisClient: global.RedisClient,
+		DBEngine:    global.Init(c.MySQL.DataSource),
+		RedisClient: global.InitRedis(c.Redis.Addr, c.Redis.Password, c.Redis.DB),
 	}
 }

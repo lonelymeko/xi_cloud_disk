@@ -4,3 +4,9 @@ Port: 8888
 Auth:
   AccessSecret: abcdefgh
   AccessExpire: 36000
+MySQL:
+  DataSource: root:12345678@tcp(127.0.0.1:3306)/cloud_disk?charset=utf8mb4&parseTime=True&loc=Local
+Redis:
+  Addr:     127.0.0.1:6379
+  Password: 
+  DB:       0
