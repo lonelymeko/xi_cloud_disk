@@ -4,13 +4,14 @@
 package logic
 
 import (
-	"cloud_disk/models"
-	"cloud_disk/utils"
+	"cloud_disk/core/models"
+	"cloud_disk/core/utils"
 	"context"
 	"errors"
 
 	"cloud_disk/core/internal/svc"
 	"cloud_disk/core/internal/types"
+	"fmt"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -32,20 +33,35 @@ func NewRegisterLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Register
 func (l *RegisterLogic) Register(req *types.RegisterRequest) (resp *types.RegisterResponse, err error) {
 	user := new(models.UserBasic)
 	// 先根据用户名在数据库中查找用户是否存在
-	has, err := l.svcCtx.DBEngine.Where("name = ?", req.Name).Get(user)
+	has, err := l.svcCtx.DBEngine.Where("name = ? or email = ?", req.Name, req.Email).Get(user)
 	if err != nil {
 		return nil, err
 	}
 	if has {
 		return nil, errors.New("用户已存在")
 	}
+	// 查询验证码
+	var code string
+	err = l.svcCtx.RedisClient.Get(l.ctx, fmt.Sprintf("verification_code:%s", req.Email)).Scan(&code)
+	if err != nil {
+		logx.Errorf("查询验证码失败: %v", err)
+		return nil, err
+	}
+	if code == "" {
+		return nil, errors.New("验证码已过期或无效")
+	}
+	// 验证码正确，创建用户
+	if req.Code != code {
+		return nil, errors.New("验证码错误")
+	}
+	uuid := utils.UUID()
 
 	// 创建用户模型对象
 	userModel := &models.UserBasic{
 		Name:     req.Name,
 		Password: utils.Md5(req.Password),
 		Email:    req.Email,
-		Identity: "", // 可以生成一个唯一标识
+		Identity: uuid, // 可以生成一个唯一标识
 	}
 	// 插入数据库
 	_, err = l.svcCtx.DBEngine.InsertOne(userModel)

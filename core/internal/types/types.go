@@ -17,11 +17,20 @@ type RegisterRequest struct {
 	Name     string `json:"name,optional"`     // 用户名
 	Email    string `json:"email,optional"`    // 邮箱
 	Password string `json:"password,optional"` // 密码
+	Code     string `json:"code,optional"`
 }
 
 type RegisterResponse struct {
 	Token string `json:"token"`
 	Name  string `json:"name"`
+}
+
+type SendVerificationCodeRequest struct {
+	Email string `json:"email,optional"` // 邮箱地址
+}
+
+type SendVerificationCodeResponse struct {
+	Message string `json:"message"` // 返回消息
 }
 
 type UserDetailRequest struct {

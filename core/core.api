@@ -11,6 +11,7 @@ type RegisterRequest {
 	Name     string `json:"name,optional"` // 用户名
 	Email    string `json:"email,optional"` // 邮箱
 	Password string `json:"password,optional"` // 密码
+	Code     string `json:"code,optional"`
 }
 
 // 登录响应
@@ -34,6 +35,14 @@ type UserDetailResponse {
 	Email string `json:"email"`
 }
 
+type SendVerificationCodeRequest {
+	Email string `json:"email,optional"` // 邮箱地址
+}
+
+type SendVerificationCodeResponse {
+	Message string `json:"message"` // 返回消息
+}
+
 @server (
 	prefix: /api/users
 )
@@ -46,5 +55,8 @@ service core-api {
 
 	@handler UserDetailHandler
 	post /detail (UserDetailRequest) returns (UserDetailResponse)
+
+	@handler SendVerificationCodeHandler
+	post /send-verification-code (SendVerificationCodeRequest) returns (SendVerificationCodeResponse)
 }
 

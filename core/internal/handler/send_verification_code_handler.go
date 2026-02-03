@@ -15,16 +15,16 @@ import (
 	"cloud_disk/core/common"
 )
 
-func UserDetailHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+func SendVerificationCodeHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req types.UserDetailRequest
+		var req types.SendVerificationCodeRequest
 		if err := httpx.Parse(r, &req); err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
 			return
 		}
 
-		l := logic.NewUserDetailLogic(r.Context(), svcCtx)
-		resp, err := l.UserDetail(&req)
+		l := logic.NewSendVerificationCodeLogic(r.Context(), svcCtx)
+		resp, err := l.SendVerificationCode(&req)
 		//if err != nil {
 		//	httpx.ErrorCtx(r.Context(), w, err)
 		//} else {

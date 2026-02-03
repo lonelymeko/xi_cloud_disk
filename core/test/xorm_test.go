@@ -2,7 +2,7 @@ package test
 
 import (
 	"bytes"
-	"cloud_disk/models"
+	"cloud_disk/core/models"
 	"encoding/json"
 	"fmt"
 	"testing"

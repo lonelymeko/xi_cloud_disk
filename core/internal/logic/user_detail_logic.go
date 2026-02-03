@@ -4,7 +4,7 @@
 package logic
 
 import (
-	"cloud_disk/models"
+	"cloud_disk/core/models"
 	"context"
 	"errors"
 

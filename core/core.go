@@ -4,7 +4,7 @@
 package main
 
 import (
-	"cloud_disk/common"
+	"cloud_disk/core/common"
 	"cloud_disk/core/internal/config"
 	"cloud_disk/core/internal/handler"
 	"cloud_disk/core/internal/svc"

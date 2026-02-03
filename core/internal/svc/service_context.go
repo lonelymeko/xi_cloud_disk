@@ -4,20 +4,24 @@
 package svc
 
 import (
+	"cloud_disk/core/global"
 	"cloud_disk/core/internal/config"
-	"cloud_disk/global"
+
+	"github.com/redis/go-redis/v9"
 
 	"xorm.io/xorm"
 )
 
 type ServiceContext struct {
-	Config   config.Config
-	DBEngine *xorm.Engine
+	Config      config.Config
+	DBEngine    *xorm.Engine
+	RedisClient *redis.Client
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
 	return &ServiceContext{
-		Config:   c,
-		DBEngine: global.Engine,
+		Config:      c,
+		DBEngine:    global.Engine,
+		RedisClient: global.RedisClient,
 	}
 }

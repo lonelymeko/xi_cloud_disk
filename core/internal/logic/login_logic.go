@@ -9,8 +9,8 @@ import (
 
 	"cloud_disk/core/internal/svc"
 	"cloud_disk/core/internal/types"
-	"cloud_disk/models"
-	"cloud_disk/utils"
+	"cloud_disk/core/models"
+	"cloud_disk/core/utils"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

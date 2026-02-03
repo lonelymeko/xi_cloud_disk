@@ -16,5 +16,9 @@ goctl api go -api core.api -dir . -style go_zero
 ```text
 # 邮箱验证
 go get github.com/jordan-wright/email
+# 缓存
+go get github.com/go-redis/redis/v8
+# uuid
+go get github.com/satori/go.uuid
 
 ```

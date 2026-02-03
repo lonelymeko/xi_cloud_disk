@@ -71,6 +71,26 @@ paths:
           description: 请求参数错误
         '401':
           description: 认证失败
+  /send-verification-code:
+    post:
+      summary: 发送邮箱验证码接口
+      description: 接收邮箱地址，发送验证码到指定邮箱
+      operationId: SendVerificationCodeHandler
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendVerificationCodeRequest'
+      responses:
+        '200':
+          description: 邮箱验证码发送成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendVerificationCodeResponse'
+        '400':
+          description: 请求参数错误
 components:
   schemas:
     LoginRequest:
@@ -103,6 +123,10 @@ components:
           type: string
           description: 用户密码
           example: "123456Abc"
+        code:
+          type: string
+          description: 邮箱验证码
+          example: "123456"
       nullable: false
     LoginResponse:
       type: object
@@ -155,4 +179,24 @@ components:
           description: 用户邮箱
           example: "zhangsan@example.com"
       required: [name, email]
+      nullable: false
+    SendVerificationCodeRequest:
+      type: object
+      description: 发送邮箱验证码请求参数
+      properties:
+        email:
+          type: string
+          format: email
+          description: 邮箱地址
+          example: "zhangsan@example.com"
+      nullable: false
+    SendVerificationCodeResponse:
+      type: object
+      description: 发送邮箱验证码响应结果
+      properties:
+        message:
+          type: string
+          description: 返回消息
+          example: "验证码发送成功"
+      required: [message]
       nullable: false
