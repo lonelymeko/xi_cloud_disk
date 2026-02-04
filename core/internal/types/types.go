@@ -5,11 +5,22 @@ package types
 
 type CreateShareRecordRequest struct {
 	Identity    string `json:"identity"`
-	ExpiredTime int    `json:"expire_time"`
+	ExpiredTime int    `json:"expired_time"`
 }
 
 type CreateShareRecordResponse struct {
 	Identity string `json:"identity"`
+}
+
+type GetShareRecordRequest struct {
+	Identity string `json:"identity"`
+}
+
+type GetShareRecordResponse struct {
+	RepositoryIdentity string `json:"repository_identity"`
+	Name               string `json:"name"`
+	Ext                string `json:"ext"`
+	Size               int64  `json:"size"`
 }
 
 type LoginRequest struct {
@@ -32,6 +43,16 @@ type RegisterRequest struct {
 type RegisterResponse struct {
 	Token string `json:"token"`
 	Name  string `json:"name"`
+}
+
+type SaveResourceRequest struct {
+	RepositoryIdentity string `json:"repository_identity"`
+	ParentId           int64  `json:"parent_id"`
+	Name               string `json:"name"`
+}
+
+type SaveResourceResponse struct {
+	Identity string `json:"identity"`
 }
 
 type SendVerificationCodeRequest struct {
@@ -87,6 +108,7 @@ type UserFileListResponse struct {
 
 type UserFileMoveRequest struct {
 	Identity string `json:"identity"`
+	Name     string `json:"name"`
 	ParentId int64  `json:"parent_id"`
 }
 

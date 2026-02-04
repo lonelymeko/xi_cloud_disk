@@ -7,6 +7,7 @@ import (
 	"cloud_disk/core/internal/svc"
 	"cloud_disk/core/internal/types"
 	"cloud_disk/core/models"
+	"cloud_disk/core/utils"
 	"context"
 	"errors"
 
@@ -36,9 +37,12 @@ func (l *CreateShareRecordLogic) CreateShareRecord(req *types.CreateShareRecordR
 	data.UserIdentity = userIdentity
 	data.RepositoryIdentity = req.Identity
 	data.ExpiredTime = req.ExpiredTime
+	data.Identity = utils.UUID()
 	_, err = l.svcCtx.DBEngine.Insert(data)
 	if err != nil {
 		return nil, err
 	}
-	return
+	return &types.CreateShareRecordResponse{
+		Identity: data.Identity,
+	}, nil
 }

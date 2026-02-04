@@ -41,6 +41,14 @@ func (l *UserFileMoveLogic) UserFileMove(req *types.UserFileMoveRequest) (resp *
 	if !has {
 		return nil, errors.New("目标文件夹不存在")
 	}
+	// 查询该层级是否有同名文件
+	cnt, err := l.svcCtx.DBEngine.Table("user_repository").Where("name = ? AND parent_id = ? AND user_identity = ?", req.Name, req.Identity, userIdentity, userIdentity).Count(new(models.UserRepository))
+	if err != nil {
+		return nil, err
+	}
+	if cnt > 0 {
+		return nil, errors.New("该目录下已存在同名文件")
+	}
 	// 更新
 	l.svcCtx.DBEngine.Table("user_repository").Where("user_identity = ? AND identity = ?", userIdentity, req.Identity).Update(&models.UserRepository{
 		ParentId: req.ParentId,

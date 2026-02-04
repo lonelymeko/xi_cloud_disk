@@ -90,10 +90,24 @@ service core-api {
 	// 用户文件移动
 	@handler UserFileMoveHandler
 	put /user/file/move (UserFileMoveRequest) returns (UserFileMoveResponse)
+}
 
+@server (
+	prefix:     /api/share
+	middleware: FileAuthMiddleware
+)
+service core-api {
 	// 创建分享记录
 	@handler CreateShareRecordHandler
-	post /share/create (CreateShareRecordRequest) returns (CreateShareRecordResponse)
+	post /create (CreateShareRecordRequest) returns (CreateShareRecordResponse)
+
+	// 获取分享记录
+	@handler GetShareRecordHandler
+	get /get (GetShareRecordRequest) returns (GetShareRecordResponse)
+
+	// 资源保存
+	@handler SaveResourceHandler
+	post /save (SaveResourceRequest) returns (SaveResourceResponse)
 }
 
 type UploadFileRequest {
@@ -165,6 +179,7 @@ type UserFolderDeleteResponse {}
 
 type UserFileMoveRequest {
 	Identity string `json:"identity"`
+	Name     string `json:"name"`
 	ParentId int64  `json:"parent_id"`
 }
 
@@ -172,10 +187,31 @@ type UserFileMoveResponse {}
 
 type CreateShareRecordRequest {
 	Identity    string `json:"identity"`
-	ExpiredTime int    `json:"expire_time"`
+	ExpiredTime int    `json:"expired_time"`
 }
 
 type CreateShareRecordResponse {
+	Identity string `json:"identity"`
+}
+
+type GetShareRecordRequest {
+	Identity string `json:"identity"`
+}
+
+type GetShareRecordResponse {
+	RepositoryIdentity string `json:"repository_identity"`
+	Name               string `json:"name"`
+	Ext                string `json:"ext"`
+	Size               int64  `json:"size"`
+}
+
+type SaveResourceRequest {
+	RepositoryIdentity string `json:"repository_identity"`
+	ParentId           int64  `json:"parent_id"`
+	Name               string `json:"name"`
+}
+
+type SaveResourceResponse {
 	Identity string `json:"identity"`
 }
 

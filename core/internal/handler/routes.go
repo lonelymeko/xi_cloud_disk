@@ -44,11 +44,6 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			[]rest.Route{
 				{
 					Method:  http.MethodPost,
-					Path:    "/share/create",
-					Handler: CreateShareRecordHandler(serverCtx),
-				},
-				{
-					Method:  http.MethodPost,
 					Path:    "/upload",
 					Handler: UploadFileHandler(serverCtx),
 				},
@@ -85,5 +80,29 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			}...,
 		),
 		rest.WithPrefix("/api/file"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.FileAuthMiddleware},
+			[]rest.Route{
+				{
+					Method:  http.MethodPost,
+					Path:    "/create",
+					Handler: CreateShareRecordHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/get",
+					Handler: GetShareRecordHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/save",
+					Handler: SaveResourceHandler(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/api/share"),
 	)
 }
