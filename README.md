@@ -14,6 +14,8 @@ goctl api go -api core.api -dir . -style go_zero
 
 其他依赖
 ```text
+# xorm
+go get xorm.io/xorm
 # 邮箱验证
 go get github.com/jordan-wright/email
 # 缓存
