@@ -3,6 +3,15 @@
 
 package types
 
+type CreateShareRecordRequest struct {
+	Identity   string `json:"identity"`
+	ExpireTime int    `json:"expire_time"`
+}
+
+type CreateShareRecordResponse struct {
+	Identity string `json:"identity"`
+}
+
 type LoginRequest struct {
 	Name     string `json:"name,optional"`     // 用户名或邮箱
 	Password string `json:"password,optional"` // 密码
@@ -74,6 +83,14 @@ type UserFileListRequest struct {
 type UserFileListResponse struct {
 	List  []*UserFile `json:"list"`
 	Count int64       `json:"count"`
+}
+
+type UserFileMoveRequest struct {
+	Identity string `json:"identity"`
+	ParentId int64  `json:"parent_id"`
+}
+
+type UserFileMoveResponse struct {
 }
 
 type UserFileNameUpdateRequest struct {

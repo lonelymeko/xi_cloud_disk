@@ -28,51 +28,6 @@ func NewUserFolderDeleteLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 	}
 }
 
-// func (l *UserFolderDeleteLogic) UserFolderDelete(req *types.UserFolderDeleteRequest) (resp *types.UserFolderDeleteResponse, err error) {
-// 	// 获取用户身份
-// 	userIdentity, ok := l.ctx.Value("user_identity").(string)
-// 	if !ok {
-// 		return nil, errors.New("用户身份验证失败")
-// 	}
-
-// 	go l.deleteUserFolder(userIdentity, req.Identity)
-
-// 	return
-// }
-
-// func (l *UserFolderDeleteLogic) deleteUserFolder(userIdentity string, parentId string) {
-// 	// 如果是文件夹，查询出所有子文件夹
-// 	// 循环查询出所有的子 id（根据父 id 查）
-// 	var datas []models.UserRepository
-// 	// 收集所有的子 id，最后批量删除
-// 	var ids []string
-// 	data := models.UserRepository{}
-// 	for {
-// 		// 先查询是不是文件夹，不是就直接删除
-// 		l.svcCtx.DBEngine.Where("user_identity = ? AND identity = ?", userIdentity, parentId).Find(&data)
-// 		if data.Ext != "" || strings.HasPrefix(data.Ext, ".") {
-// 			l.svcCtx.DBEngine.Where("identity = ?", parentId).Delete(&models.UserRepository{})
-// 			return
-// 		}
-
-// 		l.svcCtx.DBEngine.Where("user_identity = ? AND parent_id = ?", userIdentity, parentId).Find(&datas)
-// 		for _, item := range datas {
-// 			ids = append(ids, item.Identity)
-// 			parentId = item.Identity
-// 			l.deleteUserFolder(userIdentity, parentId)
-// 		}
-// 		if len(datas) == 0 {
-// 			break
-// 		}
-
-// 	}
-// 	// 批量删除
-// 	_, err := l.svcCtx.DBEngine.In("identity", ids).Delete(datas)
-// 	if err != nil {
-// 		fmt.Errorf("failed to delete user folder: %w", err)
-// 	}
-
-// }
 func (l *UserFolderDeleteLogic) UserFolderDelete(req *types.UserFolderDeleteRequest) (resp *types.UserFolderDeleteResponse, err error) {
 	userIdentity, ok := l.ctx.Value("user_identity").(string)
 	if !ok {
@@ -108,16 +63,19 @@ func (l *UserFolderDeleteLogic) UserFolderDelete(req *types.UserFolderDeleteRequ
 		return nil, errors.New("文件或文件夹不存在")
 	}
 
-	// 批量软删除
-	_, err = l.svcCtx.DBEngine.
+	// 批量软删除（使用硬删除，xorm 的 Delete 方法）
+	affected, err := l.svcCtx.DBEngine.
 		Table("user_repository").
 		In("identity", idsToDelete).
 		Where("user_identity = ?", userIdentity).
-		Delete(&[]models.UserRepository{})
+		Delete(&models.UserRepository{})
 
 	if err != nil {
+		logx.Errorf("删除失败: %v", err)
 		return nil, err
 	}
+
+	logx.Infof("成功删除 %d 个项目", affected)
 
 	resp = &types.UserFolderDeleteResponse{}
 	return resp, nil

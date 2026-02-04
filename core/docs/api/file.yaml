@@ -264,6 +264,120 @@ paths:
           description: 父文件夹不存在
         '500':
           description: 服务器内部错误
+  /user/folder/delete:
+    post:
+      summary: 删除文件或文件夹
+      description: |
+        删除用户网盘中的文件或文件夹（支持递归删除）。
+        
+        **功能说明：**
+        - 删除单个文件或整个文件夹
+        - 删除文件夹时自动递归删除所有子项
+        - 使用软删除（更新 deleted_at 字段）
+        - 只能删除自己的文件，不影响其他用户
+        
+        **认证方式：**
+        - 必须在 HTTP Header 中携带 JWT token
+        - Header: `Authorization: Bearer <your_token>`
+        
+        **使用场景：**
+        1. 删除不需要的文件
+        2. 清理整个文件夹（包括所有子文件夹和文件）
+        3. 整理网盘空间
+        
+        **删除规则：**
+        - 删除文件：直接删除该文件记录
+        - 删除文件夹：递归删除文件夹及其所有子项
+        - 软删除：数据标记为已删除但保留在数据库
+        - 物理文件：repository_pool 中的文件不会删除（其他用户可能使用）
+        
+        **注意事项：**
+        - 删除操作不可逆（软删除可恢复，但需要管理员操作）
+        - 删除文件夹会删除其中所有内容
+        - 建议删除前二次确认
+      operationId: UserFolderDeleteHandler
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserFolderDeleteRequest'
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserFolderDeleteResponse'
+        '400':
+          description: 请求参数错误
+        '401':
+          description: 未授权或 token 无效
+        '403':
+          description: 无权删除此文件或文件夹
+        '404':
+          description: 文件或文件夹不存在
+        '500':
+          description: 服务器内部错误
+  /user/file/move:
+    put:
+      summary: 移动文件或文件夹
+      description: |
+        将文件或文件夹移动到另一个位置。
+        
+        **功能说明：**
+        - 移动文件到其他文件夹
+        - 移动文件夹到其他位置
+        - 支持移动到根目录（parent_id = 0）
+        - 只修改 parent_id，不影响文件内容
+        
+        **认证方式：**
+        - 必须在 HTTP Header 中携带 JWT token
+        - Header: `Authorization: Bearer <your_token>`
+        
+        **使用场景：**
+        1. 整理文件，移动到对应文件夹
+        2. 调整目录结构
+        3. 将子文件夹提升到上级目录
+        
+        **移动规则：**
+        - 只能移动自己的文件/文件夹
+        - 目标文件夹必须存在（除非移动到根目录）
+        - 不能将文件夹移动到自己的子文件夹（避免循环）
+        - 移动文件夹时，其子项的层级关系保持不变
+        
+        **注意事项：**
+        - parent_id = 0 表示移动到根目录
+        - 不能将文件夹移动到自己或自己的子文件夹
+        - 移动操作会立即生效
+      operationId: UserFileMoveHandler
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserFileMoveRequest'
+      responses:
+        '200':
+          description: 移动成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserFileMoveResponse'
+        '400':
+          description: 请求参数错误（如循环移动等）
+        '401':
+          description: 未授权或 token 无效
+        '403':
+          description: 无权移动此文件或文件夹
+        '404':
+          description: 文件、文件夹或目标位置不存在
+        '500':
+          description: 服务器内部错误
 components:
   securitySchemes:
     BearerAuth:

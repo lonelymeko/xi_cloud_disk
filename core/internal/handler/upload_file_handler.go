@@ -122,6 +122,7 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		var uploadFile *os.File
 		var uploadFilename string
 		var compressedFilePath string // 用于记录压缩文件路径，以便清理
+		var actualSize int64          // 实际上传的文件大小
 
 		if videoExts[ext] {
 			// 是视频文件，需要压缩
@@ -153,6 +154,16 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 				httpx.ErrorCtx(r.Context(), w, err)
 				return
 			}
+
+			// 获取压缩后的文件大小
+			fileInfo, err := uploadFile.Stat()
+			if err != nil {
+				compressedFile.Close()
+				os.Remove(compressedFilePath)
+				httpx.ErrorCtx(r.Context(), w, err)
+				return
+			}
+			actualSize = fileInfo.Size()
 		} else if imageExts[ext] {
 			// 是图片文件，需要压缩
 			compressedFile, err := os.CreateTemp("", "compressed-*"+ext)
@@ -161,24 +172,25 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 				return
 			}
 			compressedFilePath = compressedFile.Name()
+			tempCompressedPath := compressedFilePath
 			compressedFile.Close() // 先关闭，因为 CompressImage 会重新打开
 
 			// 使用图片压缩（最大 1920x1080，质量 85）
-			err = utils.CompressImage(tempFile.Name(), compressedFilePath, &utils.ImageCompressOptions{
+			err = utils.CompressImage(tempFile.Name(), tempCompressedPath, &utils.ImageCompressOptions{
 				MaxWidth:  1920,
 				MaxHeight: 1080,
 				Quality:   85,
 			})
 			if err != nil {
-				os.Remove(compressedFilePath)
+				os.Remove(tempCompressedPath)
 				httpx.ErrorCtx(r.Context(), w, err)
 				return
 			}
 
 			// 重新打开压缩后的文件用于上传
-			compressedFile, err = os.Open(compressedFilePath)
+			compressedFile, err = os.Open(tempCompressedPath)
 			if err != nil {
-				os.Remove(compressedFilePath)
+				os.Remove(tempCompressedPath)
 				httpx.ErrorCtx(r.Context(), w, err)
 				return
 			}
@@ -186,15 +198,27 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			// 使用压缩后的文件上传
 			uploadFile = compressedFile
 			uploadFilename = fileHeader.Filename
+
+			// 获取压缩后的文件大小
+			fileInfo, err := uploadFile.Stat()
+			if err != nil {
+				uploadFile.Close()
+				os.Remove(tempCompressedPath)
+				httpx.ErrorCtx(r.Context(), w, err)
+				return
+			}
+			actualSize = fileInfo.Size()
 		} else {
 			// 非视频和图片文件，直接使用临时文件
 			uploadFile = tempFile
 			uploadFilename = fileHeader.Filename
+			actualSize = fileHeader.Size // 使用原始文件大小
 		}
 
+		// 上传到 OSS
 		OssPath, err := utils.UploadToOSS(uploadFile, uploadFilename)
 
-		// 上传完成后，关闭并清理压缩文件（如果有）
+		// 上传完成后，立即清理压缩文件
 		if compressedFilePath != "" {
 			uploadFile.Close()
 			os.Remove(compressedFilePath)
@@ -207,7 +231,7 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 
 		// 文件上传成功，保存文件信息
 		req.Ext = path.Ext(fileHeader.Filename)
-		req.Size = fileHeader.Size
+		req.Size = actualSize // 使用实际上传的文件大小（压缩后）
 		req.Name = fileHeader.Filename
 		req.Path = OssPath
 		req.Hash = hash

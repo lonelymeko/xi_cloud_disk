@@ -85,7 +85,15 @@ service core-api {
 
 	// 用户文件夹删除
 	@handler UserFolderDeleteHandler
-	post /user/folder/delete (UserFolderDeleteRequest) returns (UserFolderDeleteResponse)
+	delete /user/folder/delete (UserFolderDeleteRequest) returns (UserFolderDeleteResponse)
+
+	// 用户文件移动
+	@handler UserFileMoveHandler
+	put /user/file/move (UserFileMoveRequest) returns (UserFileMoveResponse)
+
+	// 创建分享记录
+	@handler CreateShareRecordHandler
+	post /share/create (CreateShareRecordRequest) returns (CreateShareRecordResponse)
 }
 
 type UploadFileRequest {
@@ -154,4 +162,20 @@ type UserFolderDeleteRequest {
 }
 
 type UserFolderDeleteResponse {}
+
+type UserFileMoveRequest {
+	Identity string `json:"identity"`
+	ParentId int64  `json:"parent_id"`
+}
+
+type UserFileMoveResponse {}
+
+type CreateShareRecordRequest {
+	Identity   string `json:"identity"`
+	ExpireTime int    `json:"expire_time"`
+}
+
+type CreateShareRecordResponse {
+	Identity string `json:"identity"`
+}
 

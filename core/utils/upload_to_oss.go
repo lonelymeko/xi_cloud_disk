@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"path"
 
 	"github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss"
@@ -34,18 +33,16 @@ func UploadToOSS(fileReader io.Reader, originalFilename string) (string, error) 
 
 	client := oss.NewClient(cfg)
 
-	go func() {
-		result, err := client.PutObject(context.TODO(), &oss.PutObjectRequest{
-			Bucket: oss.Ptr(bucketName),
-			Key:    oss.Ptr(objectName),
-			Body:   fileReader,
-		})
-		if err != nil {
-			log.Fatalf("failed to put object %v", err)
-		}
-		fmt.Printf("put object sucessfully, ETag :%v\n", result.ETag)
-		return
-	}()
+	// 同步上传，不使用 goroutine
+	result, err := client.PutObject(context.TODO(), &oss.PutObjectRequest{
+		Bucket: oss.Ptr(bucketName),
+		Key:    oss.Ptr(objectName),
+		Body:   fileReader,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to put object: %w", err)
+	}
 
+	fmt.Printf("put object sucessfully, ETag :%v\n", result.ETag)
 	return fmt.Sprintf("https://%s.%s.aliyuncs.com/%s", bucketName, region, objectName), nil
 }
