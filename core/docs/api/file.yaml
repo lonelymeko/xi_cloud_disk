@@ -599,3 +599,53 @@ components:
             可用于后续操作（如创建子文件夹、移动文件等）
           example: "folder_identity_abc123"
       required: [identity]
+    
+    UserFolderDeleteRequest:
+      type: object
+      description: 删除文件或文件夹请求
+      properties:
+        identity:
+          type: string
+          description: |
+            要删除的文件或文件夹标识（user_repository.identity）
+            - 删除文件：直接删除该文件
+            - 删除文件夹：递归删除文件夹及其所有子项
+          example: "folder_identity_abc123"
+      required: [identity]
+    
+    UserFolderDeleteResponse:
+      type: object
+      description: 删除文件或文件夹响应（空响应，成功返回 200）
+      properties: {}
+    
+    UserFileMoveRequest:
+      type: object
+      description: 移动文件或文件夹请求
+      properties:
+        identity:
+          type: string
+          description: |
+            要移动的文件或文件夹标识（user_repository.identity）
+            从文件列表接口获取
+          example: "file_identity_abc123"
+        parent_id:
+          type: integer
+          format: int64
+          description: |
+            目标父文件夹 ID
+            - 0：移动到根目录
+            - 其他值：移动到指定文件夹下
+          example: 10
+        name:
+          type: string
+          description: |
+            移动后的名称（可选）
+            - 如果不传或为空，保持原名称
+            - 如果传入新名称，同时完成重命名
+          example: "移动后的文档.pdf"
+      required: [identity, parent_id]
+    
+    UserFileMoveResponse:
+      type: object
+      description: 移动文件或文件夹响应（空响应，成功返回 200）
+      properties: {}

@@ -1,0 +1,327 @@
+openapi: 3.0.3
+info:
+  title: Core API - 分享服务
+  description: 包含文件分享、获取分享、保存资源等核心接口
+  version: 1.0.0
+servers:
+  - url: http://127.0.0.1:8888/api/share
+    description: 本地开发环境服务地址 - 分享相关接口
+paths:
+  /create:
+    post:
+      summary: 创建分享记录
+      description: |
+        创建文件或文件夹的分享记录，生成分享链接。
+        
+        **功能说明：**
+        - 为文件或文件夹创建分享链接
+        - 设置分享过期时间
+        - 生成唯一分享标识（share identity）
+        - 支持永久分享或限时分享
+        
+        **认证方式：**
+        - 必须在 HTTP Header 中携带 JWT token
+        - Header: `Authorization: Bearer <your_token>`
+        
+        **使用场景：**
+        1. 分享文件给他人查看或下载
+        2. 分享整个文件夹（包含子文件）
+        3. 临时分享（设置过期时间）
+        4. 永久分享链接
+        
+        **分享规则：**
+        - 只能分享自己的文件或文件夹
+        - 分享链接可以被任何人访问（无需登录）
+        - 过期后链接失效
+        - 分享记录存储在 share_basic 表
+        
+        **过期时间说明：**
+        - expired_time 单位：秒
+        - 例如：3600 = 1小时，86400 = 1天，604800 = 7天
+        - 传 0 或负数：永久有效
+        
+        **注意事项：**
+        - 分享的文件删除后，分享链接仍然有效（指向 repository_pool）
+        - 分享链接一旦创建，无法修改过期时间
+        - 建议设置合理的过期时间，避免永久分享
+      operationId: CreateShareRecordHandler
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateShareRecordRequest'
+      responses:
+        '200':
+          description: 分享创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateShareRecordResponse'
+        '400':
+          description: 请求参数错误
+        '401':
+          description: 未授权或 token 无效
+        '403':
+          description: 无权分享此文件或文件夹
+        '404':
+          description: 文件或文件夹不存在
+        '500':
+          description: 服务器内部错误
+  /get:
+    get:
+      summary: 获取分享记录详情
+      description: |
+        根据分享标识获取分享的文件或文件夹详情。
+        
+        **功能说明：**
+        - 通过分享链接中的标识获取文件信息
+        - 不需要登录即可访问（公开接口）
+        - 验证分享是否过期
+        - 返回文件基本信息（名称、大小、类型等）
+        
+        **认证方式：**
+        - 此接口**不需要** JWT token（公开访问）
+        - 任何人通过分享链接都可以访问
+        
+        **使用场景：**
+        1. 打开分享链接，查看分享的文件信息
+        2. 预览分享内容
+        3. 下载前查看文件详情
+        
+        **返回信息：**
+        - 文件名称和扩展名
+        - 文件大小
+        - 文件仓库标识（用于下载）
+        - 分享者信息（可选）
+        
+        **注意事项：**
+        - 如果分享已过期，返回 404 或 410 错误
+        - 如果文件已删除，返回文件不存在错误
+        - 不返回分享者的敏感信息
+      operationId: GetShareRecordHandler
+      parameters:
+        - name: identity
+          in: query
+          required: true
+          description: |
+            分享记录的唯一标识（share_basic.identity）
+            从分享链接中获取
+          schema:
+            type: string
+          example: "share_identity_abc123"
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetShareRecordResponse'
+        '400':
+          description: 请求参数错误
+        '404':
+          description: 分享记录不存在
+        '410':
+          description: 分享已过期（Gone）
+        '500':
+          description: 服务器内部错误
+  /save:
+    post:
+      summary: 保存分享的资源到自己的网盘
+      description: |
+        将他人分享的文件或文件夹保存到自己的网盘中。
+        
+        **功能说明：**
+        - 将分享的文件保存到自己的网盘
+        - 不复制物理文件（直接关联 repository_pool）
+        - 可以指定保存位置（文件夹）
+        - 可以自定义保存后的名称
+        
+        **认证方式：**
+        - 必须在 HTTP Header 中携带 JWT token
+        - Header: `Authorization: Bearer <your_token>`
+        - 必须登录才能保存文件
+        
+        **使用场景：**
+        1. 收藏他人分享的文件
+        2. 保存分享的文档到自己的网盘
+        3. 团队协作，共享文件资源
+        
+        **保存规则：**
+        - 在 user_repository 表中创建新记录
+        - repository_identity 指向同一个文件（文件去重）
+        - 可以保存到指定文件夹（parent_id）
+        - 可以重命名保存（name 参数）
+        
+        **优势：**
+        - 不占用额外存储空间（文件去重）
+        - 保存速度快（只创建关联关系）
+        - 多人可以保存同一个文件
+        
+        **注意事项：**
+        - 保存后，即使原分享者删除文件，你的副本仍然存在
+        - 保存的文件独立管理（可以单独删除或重命名）
+        - 分享过期后仍可保存（只要在有效期内访问过）
+      operationId: SaveResourceHandler
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveResourceRequest'
+      responses:
+        '200':
+          description: 保存成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaveResourceResponse'
+        '400':
+          description: 请求参数错误
+        '401':
+          description: 未授权或 token 无效
+        '404':
+          description: 分享资源不存在
+        '409':
+          description: 文件已存在（避免重复保存）
+        '410':
+          description: 分享已过期
+        '500':
+          description: 服务器内部错误
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT Token 认证
+        
+        请在 HTTP Header 中添加：
+        ```
+        Authorization: Bearer <your_token>
+        ```
+        
+        获取 token 的方式：
+        1. 调用登录接口 `/api/users/login`
+        2. 调用注册接口 `/api/users/register`
+        
+        **注意：** `/api/share/get` 接口不需要 token（公开访问）
+  schemas:
+    CreateShareRecordRequest:
+      type: object
+      description: 创建分享记录请求
+      properties:
+        identity:
+          type: string
+          description: |
+            要分享的文件或文件夹标识（user_repository.identity）
+            从文件列表接口获取
+          example: "file_identity_abc123"
+        expired_time:
+          type: integer
+          format: int32
+          description: |
+            分享过期时间（秒）
+            - 正数：从当前时间开始的有效期（如 3600 = 1小时）
+            - 0 或负数：永久有效
+            - 推荐值：
+              - 1小时：3600
+              - 1天：86400
+              - 7天：604800
+              - 30天：2592000
+          example: 86400
+      required: [identity, expired_time]
+    
+    CreateShareRecordResponse:
+      type: object
+      description: 创建分享记录响应
+      properties:
+        identity:
+          type: string
+          description: |
+            分享记录的唯一标识（share_basic.identity）
+            用于生成分享链接
+            
+            分享链接格式示例：
+            `https://yourdomain.com/share?id={identity}`
+          example: "share_identity_xyz789"
+      required: [identity]
+      nullable: false
+    
+    GetShareRecordResponse:
+      type: object
+      description: 获取分享记录响应
+      properties:
+        repository_identity:
+          type: string
+          description: |
+            文件仓库标识（repository_pool.identity）
+            用于文件下载或保存操作
+          example: "file_identity_abc123"
+        name:
+          type: string
+          description: 文件或文件夹名称
+          example: "重要文档.pdf"
+        ext:
+          type: string
+          description: |
+            文件扩展名
+            - 文件：包含点号，如 ".pdf"
+            - 文件夹：空字符串
+          example: ".pdf"
+        size:
+          type: integer
+          format: int64
+          description: |
+            文件大小（字节）
+            - 文件：实际文件大小
+            - 文件夹：0 或所有子文件的总大小
+          example: 2097152
+      required: [repository_identity, name, ext, size]
+      nullable: false
+    
+    SaveResourceRequest:
+      type: object
+      description: 保存分享资源请求
+      properties:
+        repository_identity:
+          type: string
+          description: |
+            文件仓库标识（repository_pool.identity）
+            从获取分享记录接口返回的 repository_identity 字段获取
+          example: "file_identity_abc123"
+        parent_id:
+          type: integer
+          format: int64
+          description: |
+            保存到的目标文件夹 ID
+            - 0：保存到根目录
+            - 其他值：保存到指定文件夹下
+          example: 0
+        name:
+          type: string
+          description: |
+            保存后的文件名称
+            - 可以与原文件名不同
+            - 如果不传或为空，使用原文件名
+            - 建议保留原扩展名
+          example: "我保存的文档.pdf"
+      required: [repository_identity, parent_id, name]
+    
+    SaveResourceResponse:
+      type: object
+      description: 保存分享资源响应
+      properties:
+        identity:
+          type: string
+          description: |
+            保存后的用户文件记录标识（user_repository.identity）
+            可用于后续的文件管理操作（重命名、移动、删除等）
+          example: "user_repo_identity_def456"
+      required: [identity]
+      nullable: false
