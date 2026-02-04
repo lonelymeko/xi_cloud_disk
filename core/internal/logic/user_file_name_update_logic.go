@@ -43,7 +43,7 @@ func (l *UserFileNameUpdateLogic) UserFileNameUpdate(req *types.UserFileNameUpda
 	if cnt > 0 {
 		return nil, errors.New("该目录下已存在同名文件")
 	}
-
+	// 修改文件名
 	_, err = l.svcCtx.DBEngine.Table("user_repository").Where("identity = ? AND user_identity = ?", req.Identity, userIdentity).Update(data)
 	if err != nil {
 		return nil, err

@@ -84,6 +84,15 @@ type UserFileNameUpdateRequest struct {
 type UserFileNameUpdateResponse struct {
 }
 
+type UserFolderCreateRequest struct {
+	ParentId int64  `json:"parent_id"`
+	Name     string `json:"name"`
+}
+
+type UserFolderCreateResponse struct {
+	Identity string `json:"identity"`
+}
+
 type UserRepositoryRequest struct {
 	ParentId           int64  `json:"parent_id"`
 	RepositoryIdentity string `json:"repository_identity"`
