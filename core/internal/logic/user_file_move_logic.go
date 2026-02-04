@@ -34,7 +34,7 @@ func (l *UserFileMoveLogic) UserFileMove(req *types.UserFileMoveRequest) (resp *
 		return nil, errors.New("用户身份验证失败")
 	}
 	parentData := new(models.UserRepository)
-	has, err := l.svcCtx.DBEngine.Where("identity = ? AND user_identity = ?", req.ParentId, userIdentity).Get(parentData)
+	has, err := l.svcCtx.DBEngine.Where("id = ? AND user_identity = ?", req.ParentId, userIdentity).Get(parentData)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func (l *UserFileMoveLogic) UserFileMove(req *types.UserFileMoveRequest) (resp *
 		return nil, errors.New("目标文件夹不存在")
 	}
 	// 更新
-	l.svcCtx.DBEngine.Table("user_repository").Where("identity = ? AND user_identity = ?", req.Identity, userIdentity).Update(&models.UserRepository{
+	l.svcCtx.DBEngine.Table("user_repository").Where("user_identity = ? AND identity = ?", userIdentity, req.Identity).Update(&models.UserRepository{
 		ParentId: req.ParentId,
 	})
 

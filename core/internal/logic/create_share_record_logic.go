@@ -4,10 +4,11 @@
 package logic
 
 import (
-	"context"
-
 	"cloud_disk/core/internal/svc"
 	"cloud_disk/core/internal/types"
+	"cloud_disk/core/models"
+	"context"
+	"errors"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -27,7 +28,17 @@ func NewCreateShareRecordLogic(ctx context.Context, svcCtx *svc.ServiceContext) 
 }
 
 func (l *CreateShareRecordLogic) CreateShareRecord(req *types.CreateShareRecordRequest) (resp *types.CreateShareRecordResponse, err error) {
-	// todo: add your logic here and delete this line
-
+	userIdentity, ok := l.ctx.Value("user_identity").(string)
+	if !ok {
+		return nil, errors.New("用户身份验证失败")
+	}
+	data := new(models.ShareBasic)
+	data.UserIdentity = userIdentity
+	data.RepositoryIdentity = req.Identity
+	data.ExpiredTime = req.ExpiredTime
+	_, err = l.svcCtx.DBEngine.Insert(data)
+	if err != nil {
+		return nil, err
+	}
 	return
 }

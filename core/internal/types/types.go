@@ -4,8 +4,8 @@
 package types
 
 type CreateShareRecordRequest struct {
-	Identity   string `json:"identity"`
-	ExpireTime int    `json:"expire_time"`
+	Identity    string `json:"identity"`
+	ExpiredTime int    `json:"expire_time"`
 }
 
 type CreateShareRecordResponse struct {
