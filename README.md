@@ -31,3 +31,8 @@ go get github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss
 2. 修改了go-zero的 API 代码生成模板文件，使其添加了自定义Response 统一响应处理，无需在 api 文件里重复封装，修改可以参考我的博客。
 
 ### 业务方面：
+
+
+## TODO
+1. 改造文件上传，使其支持分片上传、将上传进度实时推送给前端
+2. 将 用户文件列表总数缓存到 Redis

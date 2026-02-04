@@ -76,6 +76,14 @@ type UserFileListResponse struct {
 	Count int64       `json:"count"`
 }
 
+type UserFileNameUpdateRequest struct {
+	Identity string `json:"identity"`
+	Name     string `json:"name"`
+}
+
+type UserFileNameUpdateResponse struct {
+}
+
 type UserRepositoryRequest struct {
 	ParentId           int64  `json:"parent_id"`
 	RepositoryIdentity string `json:"repository_identity"`

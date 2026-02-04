@@ -71,8 +71,13 @@ service core-api {
 	@handler UserRepositoryHandler
 	post /user/repository (UserRepositoryRequest) returns (UserRepositoryResponse)
 
+	// 用户文件列表
 	@handler UserFileListHandler
 	post /user/list (UserFileListRequest) returns (UserFileListResponse)
+
+	// 用户文件名修改
+	@handler UserFileNameUpdateHandler
+	post /user/file/name/update (UserFileNameUpdateRequest) returns (UserFileNameUpdateResponse)
 }
 
 type UploadFileRequest {
@@ -119,4 +124,11 @@ type UserFile {
 	Size               int64  `json:"size"`
 	RepositoryIdentity string `json:"repository_identity"`
 }
+
+type UserFileNameUpdateRequest {
+	Identity string `json:"identity"`
+	Name     string `json:"name"`
+}
+
+type UserFileNameUpdateResponse {}
 

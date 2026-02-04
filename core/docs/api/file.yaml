@@ -158,6 +158,57 @@ paths:
           description: 未授权或 token 无效
         '500':
           description: 服务器内部错误
+  /user/file/name/update:
+    post:
+      summary: 修改文件名称
+      description: |
+        修改用户文件仓库中的文件名称（重命名功能）。
+        
+        **功能说明：**
+        - 修改用户个人文件列表中的文件名称
+        - 只修改 user_repository 表中的记录（不影响其他用户）
+        - 不修改物理文件（repository_pool 表不变）
+        - 支持重命名为任意名称
+        
+        **认证方式：**
+        - 必须在 HTTP Header 中携带 JWT token
+        - Header: `Authorization: Bearer <your_token>`
+        
+        **使用场景：**
+        1. 用户对已保存的文件进行重命名
+        2. 整理文件时修改文件名
+        3. 为分享的文件设置自定义名称
+        
+        **注意事项：**
+        - 只能修改自己的文件名称
+        - 文件名不能为空
+        - 修改后不影响其他用户的文件名
+      operationId: UserFileNameUpdateHandler
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserFileNameUpdateRequest'
+      responses:
+        '200':
+          description: 修改成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserFileNameUpdateResponse'
+        '400':
+          description: 请求参数错误
+        '401':
+          description: 未授权或 token 无效
+        '403':
+          description: 无权修改此文件
+        '404':
+          description: 文件不存在
+        '500':
+          description: 服务器内部错误
 components:
   securitySchemes:
     BearerAuth:
@@ -320,3 +371,28 @@ components:
             可用于文件下载、删除等操作
           example: "file_identity_xyz789"
       required: [id, identity, name, ext, size, repository_identity]
+    
+    UserFileNameUpdateRequest:
+      type: object
+      description: 文件重命名请求
+      properties:
+        identity:
+          type: string
+          description: |
+            用户文件记录标识（user_repository.identity）
+            从文件列表接口获取
+          example: "user_repo_identity_abc123"
+        name:
+          type: string
+          description: |
+            新的文件名称
+            - 不能为空
+            - 可以包含扩展名，也可以不包含
+            - 建议保留原有扩展名
+          example: "我的重要文档.pdf"
+      required: [identity, name]
+    
+    UserFileNameUpdateResponse:
+      type: object
+      description: 文件重命名响应（空响应，成功返回 200）
+      properties: {}
