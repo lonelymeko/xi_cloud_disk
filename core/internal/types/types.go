@@ -93,6 +93,13 @@ type UserFolderCreateResponse struct {
 	Identity string `json:"identity"`
 }
 
+type UserFolderDeleteRequest struct {
+	Identity string `json:"identity"`
+}
+
+type UserFolderDeleteResponse struct {
+}
+
 type UserRepositoryRequest struct {
 	ParentId           int64  `json:"parent_id"`
 	RepositoryIdentity string `json:"repository_identity"`

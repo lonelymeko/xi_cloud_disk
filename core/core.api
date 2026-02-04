@@ -82,6 +82,10 @@ service core-api {
 	// 用户文件夹创建
 	@handler UserFolderCreateHandler
 	post /user/folder/create (UserFolderCreateRequest) returns (UserFolderCreateResponse)
+
+	// 用户文件夹删除
+	@handler UserFolderDeleteHandler
+	post /user/folder/delete (UserFolderDeleteRequest) returns (UserFolderDeleteResponse)
 }
 
 type UploadFileRequest {
@@ -144,4 +148,10 @@ type UserFolderCreateRequest {
 type UserFolderCreateResponse {
 	Identity string `json:"identity"`
 }
+
+type UserFolderDeleteRequest {
+	Identity string `json:"identity"`
+}
+
+type UserFolderDeleteResponse {}
 

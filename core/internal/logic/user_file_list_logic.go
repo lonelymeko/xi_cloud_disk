@@ -6,6 +6,7 @@ package logic
 import (
 	"context"
 	"errors"
+	"time"
 
 	"cloud_disk/core/common"
 	"cloud_disk/core/internal/svc"
@@ -56,6 +57,8 @@ func (l *UserFileListLogic) UserFileList(req *types.UserFileListRequest) (resp *
 			"user_repository.repository_identity, user_repository.ext, "+
 			"repository_pool.path, repository_pool.size").
 		Join("LEFT", "repository_pool", "user_repository.repository_identity = repository_pool.identity").
+		// 筛选出「从未被标记删除」或「删除标记被重置为零值」的user_repository数据，即「有效数据」。
+		Where("user_repository.deleted_at = ? OR user_repository.deleted_at IS NULL", time.Time{}.Format(common.DataTimeFormat)).
 		Limit(int(size), int(offset)).
 		Find(&uf)
 	if err != nil {
