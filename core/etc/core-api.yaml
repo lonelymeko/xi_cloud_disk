@@ -1,6 +1,8 @@
 Name: core-api
 Host: 0.0.0.0
 Port: 8888
+MaxBytes: 10737418240  # 最大请求体大小 10GB (10 * 1024 * 1024 * 1024)
+Timeout: 300000        # 超时时间 300秒 (5分钟)
 Auth:
   AccessSecret: abcdefgh
   AccessExpire: 36000

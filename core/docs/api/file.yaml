@@ -1,0 +1,322 @@
+openapi: 3.0.3
+info:
+  title: Core API - 文件服务
+  description: 包含文件上传、下载等核心接口
+  version: 1.0.0
+servers:
+  - url: http://127.0.0.1:8888/api/file
+    description: 本地开发环境服务地址 - 文件相关接口
+paths:
+  /upload:
+    post:
+      summary: 文件上传接口
+      description: |
+        上传文件到服务器，支持秒传功能（基于文件 hash 判断文件是否已存在）。
+        
+        **智能压缩：**
+        - **视频文件**：自动使用 ffmpeg 压缩（H.264 编码，CRF=23，音频 128k）
+        - **图片文件**：自动压缩并限制尺寸（最大 1920x1080，JPEG 质量 85）
+        - **其他文件**：不压缩，直接上传
+        
+        **认证方式：**
+        - 必须在 HTTP Header 中携带 JWT token
+        - Header: `Authorization: Bearer <your_token>`
+        
+        **文件大小限制：** 
+        - 最大支持 10GB 文件上传
+        - 建议视频文件不超过 5GB，以获得更好的用户体验
+        
+        **支持的视频格式（会自动压缩）：**
+        - .mp4, .avi, .mov, .mkv, .flv, .wmv, .webm, .m4v
+        
+        **支持的图片格式（会自动压缩）：**
+        - .jpg, .jpeg, .png, .gif, .bmp, .webp
+        - 压缩规则：最大宽度 1920px，最大高度 1080px，保持宽高比
+        - JPEG 质量：85（平衡画质和文件大小）
+        
+        **秒传机制：**
+        - 系统会先计算文件的 MD5 hash
+        - 如果文件已存在（hash 相同），直接返回已有文件标识，无需重复上传
+      operationId: UploadFileHandler
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: |
+                    上传的文件对象
+                    
+                    - 视频文件（.mp4, .avi, .mov 等）：自动压缩
+                    - 图片文件（.jpg, .png 等）：自动压缩并限制尺寸
+                    - 其他文件：不压缩，直接上传
+              required:
+                - file
+      responses:
+        '200':
+          description: 文件上传成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadFileResponse'
+        '400':
+          description: 请求参数错误
+        '413':
+          description: 文件过大（Request Entity Too Large），超过 10GB 限制
+        '500':
+          description: 服务器内部错误
+  /user/repository:
+    post:
+      summary: 创建用户文件仓库
+      description: |
+        将文件关联到用户的文件仓库中，建立用户与文件的关联关系。
+        
+        **功能说明：**
+        - 用户上传文件后，需要调用此接口将文件添加到自己的文件仓库
+        - 支持文件夹层级结构（通过 parent_id 实现）
+        - 同一个文件可以被多个用户关联（文件去重）
+        
+        **认证方式：**
+        - 必须在 HTTP Header 中携带 JWT token
+        - Header: `Authorization: Bearer <your_token>`
+        
+        **使用场景：**
+        1. 用户上传新文件后，调用此接口保存到个人仓库
+        2. 文件分享时，其他用户保存到自己的仓库
+        3. 文件移动/复制操作
+      operationId: UserRepositoryHandler
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRepositoryRequest'
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRepositoryResponse'
+        '400':
+          description: 请求参数错误
+        '401':
+          description: 未授权或 token 无效
+        '500':
+          description: 服务器内部错误
+  /user/list:
+    post:
+      summary: 获取用户文件列表
+      description: |
+        获取当前登录用户的文件列表，支持分页和文件夹筛选。
+        
+        **功能说明：**
+        - 查询用户的文件仓库（user_repository 表）中的文件
+        - 支持按文件夹 ID 筛选（查看指定文件夹下的文件）
+        - 支持分页查询
+        - 返回文件详细信息（包括文件大小、扩展名等）
+        
+        **认证方式：**
+        - 必须在 HTTP Header 中携带 JWT token
+        - Header: `Authorization: Bearer <your_token>`
+        
+        **使用场景：**
+        1. 显示用户网盘首页（根目录文件列表）
+        2. 进入某个文件夹，查看该文件夹下的文件
+        3. 分页加载大量文件
+        
+        **数据来源：**
+        - 从 user_repository 表查询（用户个人文件关联表）
+        - 通过 repository_identity 关联到 repository_pool 表获取文件详情
+      operationId: UserFileListHandler
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserFileListRequest'
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserFileListResponse'
+        '400':
+          description: 请求参数错误
+        '401':
+          description: 未授权或 token 无效
+        '500':
+          description: 服务器内部错误
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT Token 认证
+        
+        请在 HTTP Header 中添加：
+        ```
+        Authorization: Bearer <your_token>
+        ```
+        
+        获取 token 的方式：
+        1. 调用登录接口 `/api/users/login`
+        2. 调用注册接口 `/api/users/register`
+  schemas:
+    UploadFileResponse:
+      type: object
+      description: 文件上传响应结果
+      properties:
+        identity:
+          type: string
+          description: 文件唯一标识
+          example: "file_identity_abc123"
+        name:
+          type: string
+          description: 文件名称
+          example: "document.pdf"
+        ext:
+          type: string
+          description: 文件扩展名
+          example: ".pdf"
+      required: [identity, name, ext]
+      nullable: false
+    
+    UserRepositoryRequest:
+      type: object
+      description: 用户文件仓库创建请求
+      properties:
+        identity:
+          type: string
+          description: |
+            用户身份标识（从 JWT token 中获取，可选）
+            如果不提供，系统会自动从 token 中解析用户身份
+          example: "user_identity_xyz789"
+        parent_id:
+          type: integer
+          format: int64
+          description: |
+            父文件夹 ID（用于建立文件夹层级关系）
+            - 0 或不传：表示根目录
+            - 其他值：表示放在指定文件夹下
+          example: 0
+        repository_identity:
+          type: string
+          description: |
+            文件仓库标识（关联到 repository_pool 表）
+            通常是上传文件接口返回的 identity
+          example: "file_identity_abc123"
+        name:
+          type: string
+          description: |
+            文件或文件夹名称
+            可以与原始文件名不同（支持重命名）
+          example: "我的文档.pdf"
+        ext:
+          type: string
+          description: 文件扩展名（包含点号）
+          example: ".pdf"
+      required: [repository_identity, name]
+    
+    UserRepositoryResponse:
+      type: object
+      description: 用户文件仓库创建响应
+      properties:
+        identity:
+          type: string
+          description: 用户文件仓库记录的唯一标识
+          example: "user_repo_identity_def456"
+      required: [identity]
+      nullable: false
+    
+    UserFileListRequest:
+      type: object
+      description: 用户文件列表查询请求
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: |
+            文件夹 ID（parent_id）
+            - 不传或传 0：查询根目录下的文件
+            - 传具体 ID：查询指定文件夹下的文件
+          example: 0
+        page:
+          type: integer
+          format: int64
+          description: |
+            页码（从 1 开始）
+            默认：1
+          example: 1
+          default: 1
+        size:
+          type: integer
+          format: int64
+          description: |
+            每页数量
+            默认：20
+          example: 20
+          default: 20
+    
+    UserFileListResponse:
+      type: object
+      description: 用户文件列表响应
+      properties:
+        list:
+          type: array
+          description: 文件列表
+          items:
+            $ref: '#/components/schemas/UserFile'
+        count:
+          type: integer
+          format: int64
+          description: 文件总数（用于分页）
+          example: 100
+      required: [list, count]
+    
+    UserFile:
+      type: object
+      description: 用户文件信息
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: 用户文件记录 ID（user_repository 表主键）
+          example: 1
+        identity:
+          type: string
+          description: 用户文件记录唯一标识（user_repository.identity）
+          example: "user_repo_identity_abc123"
+        name:
+          type: string
+          description: 文件名称
+          example: "我的文档.pdf"
+        ext:
+          type: string
+          description: 文件扩展名
+          example: ".pdf"
+        size:
+          type: integer
+          format: int64
+          description: 文件大小（字节）
+          example: 1048576
+        repository_identity:
+          type: string
+          description: |
+            文件仓库标识（关联到 repository_pool 表）
+            可用于文件下载、删除等操作
+          example: "file_identity_xyz789"
+      required: [id, identity, name, ext, size, repository_identity]

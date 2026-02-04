@@ -7,9 +7,9 @@ type ShareBasic struct {
 	UserIdentity       string
 	RepositoryIdentity string
 	ExpiredTime        int
-	CreatedAt          string
-	UpdatedAt          string
-	DeletedAt          string
+	CreatedAt          string `xorm:"created"`
+	UpdatedAt          string `xorm:"updated"`
+	DeletedAt          string `xorm:"deleted"`
 }
 
 // TableName 指定数据表名

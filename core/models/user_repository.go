@@ -5,13 +5,13 @@ type UserRepository struct {
 	Id                 int
 	Identity           string
 	UserIdentity       string
-	ParentId           int
+	ParentId           int64
 	RepositoryIdentity string
 	Ext                string
 	Name               string
-	CreatedAt          string
-	UpdatedAt          string
-	DeletedAt          string
+	CreatedAt          string `xorm:"created"`
+	UpdatedAt          string `xorm:"updated"`
+	DeletedAt          string `xorm:"deleted"`
 }
 
 // 指定数据表名

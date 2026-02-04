@@ -5,19 +5,24 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"testing"
 
 	"github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss"
 	"github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss/credentials"
+	"github.com/joho/godotenv"
 )
 
-func main() {
+func TestOSS(t *testing.T) {
 	var (
 		region     = "cn-beijing"
 		bucketName = "xi-cloud-disk"
-		objectName = "your object name"
-		localFile  = "your local file path"
+		objectName = "test.txt"
+		localFile  = "/Users/xixiu/GolandProjects/cloud_disk/core/test/test.txt"
 	)
-
+	err := godotenv.Load("../.env")
+	if err != nil {
+		panic(err)
+	}
 	// Using the SDK's default configuration
 	// loading credentials values from the environment variables
 	cfg := oss.LoadDefaultConfig().

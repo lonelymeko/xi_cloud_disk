@@ -7,11 +7,11 @@ type RepositoryPool struct {
 	Hash      string
 	Name      string
 	Ext       string
-	Size      float64
+	Size      int64
 	Path      string
-	CreatedAt string
-	UpdatedAt string
-	DeletedAt string
+	CreatedAt string `xorm:"created"`
+	UpdatedAt string `xorm:"updated"`
+	DeletedAt string `xorm:"deleted"`
 }
 
 // TableName 指定数据表名

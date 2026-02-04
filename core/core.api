@@ -60,3 +60,63 @@ service core-api {
 	post /send-verification-code (SendVerificationCodeRequest) returns (SendVerificationCodeResponse)
 }
 
+@server (
+	prefix:     /api/file
+	middleware: FileAuthMiddleware
+)
+service core-api {
+	@handler UploadFileHandler
+	post /upload (UploadFileRequest) returns (UploadFileResponse)
+
+	@handler UserRepositoryHandler
+	post /user/repository (UserRepositoryRequest) returns (UserRepositoryResponse)
+
+	@handler UserFileListHandler
+	post /user/list (UserFileListRequest) returns (UserFileListResponse)
+}
+
+type UploadFileRequest {
+	Hash string `json:"hash,optional"`
+	Name string `json:"name,optional"`
+	Ext  string `json:"ext,optional"`
+	Size int64  `json:"size,optional"`
+	Path string `json:"path,optional"`
+}
+
+type UploadFileResponse {
+	Identity string `json:"identity"`
+	Name     string `json:"name"`
+	Ext      string `json:"ext"`
+}
+
+type UserRepositoryRequest {
+	ParentId           int64  `json:"parent_id"`
+	RepositoryIdentity string `json:"repository_identity"`
+	Name               string `json:"name"`
+	Ext                string `json:"ext"`
+}
+
+type UserRepositoryResponse {
+	Identity string `json:"identity"`
+}
+
+type UserFileListRequest {
+	id   int64 `json:"id,optional"`
+	Page int   `json:"page,optional"`
+	Size int   `json:"size,optional"`
+}
+
+type UserFileListResponse {
+	List  []*UserFile `json:"list"`
+	Count int64       `json:"count"`
+}
+
+type UserFile {
+	Id                 int64  `json:"id"`
+	Identity           string `json:"identity"`
+	Name               string `json:"name"`
+	Ext                string `json:"ext"`
+	Size               int64  `json:"size"`
+	RepositoryIdentity string `json:"repository_identity"`
+}
+

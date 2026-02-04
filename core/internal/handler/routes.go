@@ -37,4 +37,28 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 		},
 		rest.WithPrefix("/api/users"),
 	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.FileAuthMiddleware},
+			[]rest.Route{
+				{
+					Method:  http.MethodPost,
+					Path:    "/upload",
+					Handler: UploadFileHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/user/list",
+					Handler: UserFileListHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/user/repository",
+					Handler: UserRepositoryHandler(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/api/file"),
+	)
 }

@@ -33,6 +33,20 @@ type SendVerificationCodeResponse struct {
 	Message string `json:"message"` // 返回消息
 }
 
+type UploadFileRequest struct {
+	Hash string `json:"hash,optional"`
+	Name string `json:"name,optional"`
+	Ext  string `json:"ext,optional"`
+	Size int64  `json:"size,optional"`
+	Path string `json:"path,optional"`
+}
+
+type UploadFileResponse struct {
+	Identity string `json:"identity"`
+	Name     string `json:"name"`
+	Ext      string `json:"ext"`
+}
+
 type UserDetailRequest struct {
 	Identity string `json:"identity"`
 }
@@ -40,4 +54,35 @@ type UserDetailRequest struct {
 type UserDetailResponse struct {
 	Name  string `json:"name"`
 	Email string `json:"email"`
+}
+
+type UserFile struct {
+	Id                 int64  `json:"id"`
+	Identity           string `json:"identity"`
+	Name               string `json:"name"`
+	Ext                string `json:"ext"`
+	Size               int64  `json:"size"`
+	RepositoryIdentity string `json:"repository_identity"`
+}
+
+type UserFileListRequest struct {
+	Id   int64 `json:"id,optional"`
+	Page int   `json:"page,optional"`
+	Size int   `json:"size,optional"`
+}
+
+type UserFileListResponse struct {
+	List  []*UserFile `json:"list"`
+	Count int64       `json:"count"`
+}
+
+type UserRepositoryRequest struct {
+	ParentId           int64  `json:"parent_id"`
+	RepositoryIdentity string `json:"repository_identity"`
+	Name               string `json:"name"`
+	Ext                string `json:"ext"`
+}
+
+type UserRepositoryResponse struct {
+	Identity string `json:"identity"`
 }

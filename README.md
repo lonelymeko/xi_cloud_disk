@@ -24,3 +24,10 @@ go get github.com/satori/go.uuid
 go get github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss
 
 ```
+
+## 亮点
+### 代码架构方面：
+1. 不使用 go_zero自带的 JWT 组件（原因详见我提的 issue：[JWT Middleware 读取整个多部分/表单数据，导致文件上传性能问题](https://github.com/zeromicro/go-zero/issues/5401)）。引入JWT 认证，使用JwtPayLoad结构体自定义签名，在统一的中间件检查权限并将用户信息保存在ctx中，直接在 logic 方法查询当前上下文的信息，避免在每个handler中检查请求头来获取用户信息，避免在数据库中查询用户信息。
+2. 修改了go-zero的 API 代码生成模板文件，使其添加了自定义Response 统一响应处理，无需在 api 文件里重复封装，修改可以参考我的博客。
+
+### 业务方面：

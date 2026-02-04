@@ -5,7 +5,7 @@ info:
   version: 1.0.0
 servers:
   - url: http://127.0.0.1:8888/api/users
-    description: 本地开发环境服务地址
+    description: 本地开发环境服务地址 - 用户相关接口
 paths:
   /login:
     post:
