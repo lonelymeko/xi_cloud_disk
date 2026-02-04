@@ -20,5 +20,7 @@ go get github.com/jordan-wright/email
 go get github.com/go-redis/redis/v8
 # uuid
 go get github.com/satori/go.uuid
+# aliyun oss
+go get github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss
 
 ```

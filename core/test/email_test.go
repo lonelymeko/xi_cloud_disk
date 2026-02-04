@@ -17,7 +17,7 @@ func TestEmail(t *testing.T) {
 	e.Subject = "GO 邮箱测试"
 	//e.Text = []byte("Text Body is, of course, supported!")
 	e.HTML = []byte("你的验证码：<h1>345627</h1>")
-	err := e.SendWithStartTLS("smtp.qq.com:587", smtp.PlainAuth("", "2477183238@qq.com", "mfylldqkhapydjja", "smtp.qq.com"),
+	err := e.SendWithStartTLS("smtp.qq.com:587", smtp.PlainAuth("", "2477183238@qq.com", "", "smtp.qq.com"),
 		&tls.Config{
 			ServerName:         "smtp.qq.com",
 			InsecureSkipVerify: true,
