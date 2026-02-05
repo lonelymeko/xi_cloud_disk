@@ -5,6 +5,7 @@ import (
 	"strings"
 )
 
+// ObjectKeyFromPath 从路径或 URL 中提取对象键。
 func ObjectKeyFromPath(raw string) string {
 	if raw == "" {
 		return ""

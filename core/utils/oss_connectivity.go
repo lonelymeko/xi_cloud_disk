@@ -9,6 +9,7 @@ import (
 	"time"
 )
 
+// OSSHost 获取 OSS 连接地址。
 func OSSHost() string {
 	if v := os.Getenv("OSS_HOST"); v != "" {
 		return v
@@ -24,6 +25,7 @@ func OSSHost() string {
 	return fmt.Sprintf("%s.%s.aliyuncs.com:443", bucket, region)
 }
 
+// OSSConnectivity 检查 OSS 网络连通性。
 func OSSConnectivity(ctx context.Context) error {
 	d := net.Dialer{Timeout: 2 * time.Second}
 	conn, err := d.DialContext(ctx, "tcp", OSSHost())

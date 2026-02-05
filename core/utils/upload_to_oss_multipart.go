@@ -15,10 +15,10 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
-// UploadToOSSMultipart 分片上传文件到 OSS
-// filePath: 本地文件路径
-// originalFilename: 原始文件名
-// fileSize: 文件大小（字节）
+// UploadToOSSMultipart 分片上传文件到 OSS。
+// filePath: 本地文件路径。
+// originalFilename: 原始文件名。
+// fileSize: 文件大小（字节）。
 func UploadToOSSMultipart(filePath string, originalFilename string, fileSize int64) (string, error) {
 	key := UUID() + path.Ext(originalFilename)
 
@@ -126,7 +126,7 @@ func UploadToOSSMultipart(filePath string, originalFilename string, fileSize int
 	return objectName, nil
 }
 
-// uploadPartsConfig 分片上传配置
+// uploadPartsConfig 分片上传配置。
 type uploadPartsConfig struct {
 	Bucket     string
 	Key        string
@@ -136,7 +136,7 @@ type uploadPartsConfig struct {
 	TotalParts int64
 }
 
-// uploadPartsParallel 并发上传分片
+// uploadPartsParallel 并发上传分片。
 func uploadPartsParallel(ctx context.Context, client *oss.Client, file fileReader, config *uploadPartsConfig) ([]oss.UploadPart, error) {
 	// 创建结果切片（预分配空间）
 	parts := make([]oss.UploadPart, config.TotalParts)
@@ -249,13 +249,13 @@ func uploadPartsParallel(ctx context.Context, client *oss.Client, file fileReade
 	return parts, nil
 }
 
-// fileReader 文件读取接口（支持 ReadAt）
+// fileReader 文件读取接口（支持 ReadAt）。
 type fileReader interface {
 	io.ReaderAt
 	io.Closer
 }
 
-// openFile 打开文件的辅助函数
+// openFile 打开文件的辅助函数。
 func openFile(filePath string) (fileReader, error) {
 	return os.Open(filePath)
 }

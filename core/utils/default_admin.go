@@ -10,6 +10,7 @@ import (
 	"xorm.io/xorm"
 )
 
+// EnsureDefaultAdmin 确保默认管理员账号存在。
 func EnsureDefaultAdmin(engine *xorm.Engine) error {
 	name := os.Getenv("ADMIN_NAME")
 	if name == "" {
@@ -53,6 +54,7 @@ func EnsureDefaultAdmin(engine *xorm.Engine) error {
 	return nil
 }
 
+// randomPassword 生成随机密码。
 func randomPassword(length int) string {
 	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	out := make([]byte, length)
