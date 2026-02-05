@@ -1,4 +1,4 @@
-// Code scaffolded by goctl. Safe to edit.
+// goctl 生成代码，可安全编辑。
 // goctl 1.9.2
 
 package handler
@@ -15,6 +15,7 @@ import (
 	"cloud_disk/core/common"
 )
 
+// SendVerificationCodeHandler 发送验证码处理入口。
 func SendVerificationCodeHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.SendVerificationCodeRequest
