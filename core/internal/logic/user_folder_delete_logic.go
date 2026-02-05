@@ -42,7 +42,7 @@ func (l *UserFolderDeleteLogic) UserFolderDelete(req *types.UserFolderDeleteRequ
             FROM user_repository
             WHERE identity = ? AND user_identity = ? AND deleted_at IS NULL
             
-            UNION ALL
+		UNION
             
             -- 递归查询：所有子项
             SELECT ur.id, ur.identity, ur.parent_id, ur.ext

@@ -3,17 +3,26 @@ package test
 import (
 	"bytes"
 	"cloud_disk/core/models"
+	"cloud_disk/core/utils"
 	"encoding/json"
-	"fmt"
 	"testing"
 
-	_ "github.com/go-sql-driver/mysql"
+	_ "modernc.org/sqlite"
 
 	"xorm.io/xorm"
 )
 
 func TestXorm(t *testing.T) {
-	engine, err := xorm.NewEngine("mysql", "root:12345678@tcp(127.0.0.1:3306)/cloud_disk?charset=utf8mb4&parseTime=True&loc=")
+	engine, err := xorm.NewEngine("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = utils.EnsureSchema(engine)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = engine.InsertOne(&models.UserBasic{Name: "n", Email: "e", Password: "p", Identity: "id"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,5 +44,7 @@ func TestXorm(t *testing.T) {
 		t.Fatal(err)
 	}
 	// 打印格式化后的JSON字符串到控制台
-	fmt.Println(dst.String())
+	if dst.Len() == 0 {
+		t.Fatal("empty json")
+	}
 }

@@ -26,6 +26,26 @@ type RegisterResponse {
 	Name  string `json:"name"`
 }
 
+type ChangePasswordRequest {
+	Identity    string `json:"identity"`
+	OldPassword string `json:"old_password"`
+	NewPassword string `json:"new_password"`
+}
+
+type ChangePasswordResponse {
+	Message string `json:"message"`
+}
+
+type ResetPasswordRequest {
+	Email       string `json:"email,optional"`
+	Code        string `json:"code,optional"`
+	NewPassword string `json:"new_password,optional"`
+}
+
+type ResetPasswordResponse {
+	Message string `json:"message"`
+}
+
 type UserDetailRequest {
 	Identity string `json:"identity"`
 }
@@ -52,6 +72,12 @@ service core-api {
 
 	@handler RegisterHandler
 	post /register (RegisterRequest) returns (RegisterResponse)
+
+	@handler ChangePasswordHandler
+	post /password/update (ChangePasswordRequest) returns (ChangePasswordResponse)
+
+	@handler ResetPasswordHandler
+	post /password/reset (ResetPasswordRequest) returns (ResetPasswordResponse)
 
 	@handler UserDetailHandler
 	post /detail (UserDetailRequest) returns (UserDetailResponse)
@@ -197,4 +223,3 @@ type SaveResourceRequest {
 type SaveResourceResponse {
 	Identity string `json:"identity"`
 }
-

@@ -34,7 +34,26 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Path:    "/send-verification-code",
 				Handler: SendVerificationCodeHandler(serverCtx),
 			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/password/reset",
+				Handler: ResetPasswordHandler(serverCtx),
+			},
 		},
+		rest.WithPrefix("/api/users"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.FileAuthMiddleware},
+			[]rest.Route{
+				{
+					Method:  http.MethodPost,
+					Path:    "/password/update",
+					Handler: ChangePasswordHandler(serverCtx),
+				},
+			}...,
+		),
 		rest.WithPrefix("/api/users"),
 	)
 

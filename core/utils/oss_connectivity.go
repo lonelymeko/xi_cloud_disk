@@ -10,6 +10,9 @@ import (
 )
 
 func OSSHost() string {
+	if v := os.Getenv("OSS_HOST"); v != "" {
+		return v
+	}
 	bucket := os.Getenv("OSS_BUCKET_NAME")
 	region := os.Getenv("OSS_REGION")
 	if bucket == "" {
