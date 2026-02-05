@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// TestMd5 验证 Md5 计算结果。
 func TestMd5(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -24,6 +25,7 @@ func TestMd5(t *testing.T) {
 	}
 }
 
+// TestUUID 验证 UUID 格式与唯一性。
 func TestUUID(t *testing.T) {
 	a := UUID()
 	b := UUID()
@@ -41,6 +43,7 @@ func TestUUID(t *testing.T) {
 	}
 }
 
+// TestTokenRoundTrip 验证 Token 生成与解析。
 func TestTokenRoundTrip(t *testing.T) {
 	payload := JwtPayLoad{Id: 1, Identity: "u-1", Name: "bob"}
 	token, err := GenToken(payload, "secret", 1)
@@ -56,6 +59,7 @@ func TestTokenRoundTrip(t *testing.T) {
 	}
 }
 
+// TestTokenInvalid 验证无效 Token 解析失败。
 func TestTokenInvalid(t *testing.T) {
 	_, err := ParseToken("invalid.token", "secret", 1)
 	if err == nil {
@@ -63,6 +67,7 @@ func TestTokenInvalid(t *testing.T) {
 	}
 }
 
+// TestRandomPassword 验证随机密码生成。
 func TestRandomPassword(t *testing.T) {
 	value := randomPassword(16)
 	if len(value) != 16 {
@@ -76,6 +81,7 @@ func TestRandomPassword(t *testing.T) {
 	}
 }
 
+// BenchmarkMd5 基准测试 Md5。
 func BenchmarkMd5(b *testing.B) {
 	input := strings.Repeat("a", 128)
 	for i := 0; i < b.N; i++ {

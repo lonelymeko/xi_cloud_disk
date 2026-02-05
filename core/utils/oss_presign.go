@@ -8,6 +8,7 @@ import (
 	"github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss"
 )
 
+// PresignGetObject 生成获取对象的临时签名 URL。
 func PresignGetObject(ctx context.Context, objectKey string, expires time.Duration) (string, error) {
 	client, err := newOSSClient(common.OSSRegion)
 	if err != nil {

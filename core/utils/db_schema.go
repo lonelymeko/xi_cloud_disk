@@ -8,6 +8,7 @@ import (
 	"xorm.io/xorm/schemas"
 )
 
+// EnsureSchema 同步数据库表结构。
 func EnsureSchema(engine *xorm.Engine) error {
 	if err := engine.Sync2(new(models.UserBasic)); err != nil {
 		return fmt.Errorf("sync user_basic: %w", err)
@@ -27,6 +28,7 @@ func EnsureSchema(engine *xorm.Engine) error {
 	return nil
 }
 
+// TablesHealthy 校验表存在性与结构完整性。
 func TablesHealthy(engine *xorm.Engine) error {
 	names := []string{
 		new(models.UserBasic).TableName(),
@@ -78,6 +80,7 @@ func TablesHealthy(engine *xorm.Engine) error {
 	return nil
 }
 
+// ensureColumnTypes 校验关键字段类型。
 func ensureColumnTypes(metaMap map[string]*schemas.Table) error {
 	repo := metaMap[new(models.RepositoryPool).TableName()]
 	if repo == nil {
@@ -103,6 +106,7 @@ func ensureColumnTypes(metaMap map[string]*schemas.Table) error {
 	return nil
 }
 
+// ensureIndexes 校验关键索引存在。
 func ensureIndexes(metaMap map[string]*schemas.Table) error {
 	userRepo := metaMap[new(models.UserRepository).TableName()]
 	if userRepo == nil {
@@ -122,6 +126,7 @@ func ensureIndexes(metaMap map[string]*schemas.Table) error {
 	return nil
 }
 
+// checkColumnType 校验字段类型是否在允许列表中。
 func checkColumnType(table *schemas.Table, column string, allowed []string) error {
 	col := table.GetColumn(column)
 	if col == nil {
@@ -136,6 +141,7 @@ func checkColumnType(table *schemas.Table, column string, allowed []string) erro
 	return fmt.Errorf("table %s column %s type %s not allowed", table.Name, column, colType)
 }
 
+// indexHasColumns 判断是否存在匹配字段集合的索引。
 func indexHasColumns(table *schemas.Table, cols []string) bool {
 	if table == nil || len(table.Indexes) == 0 {
 		return false
@@ -148,6 +154,7 @@ func indexHasColumns(table *schemas.Table, cols []string) bool {
 	return false
 }
 
+// equalColumns 判断两个字段集合是否等价。
 func equalColumns(left, right []string) bool {
 	if len(left) != len(right) {
 		return false

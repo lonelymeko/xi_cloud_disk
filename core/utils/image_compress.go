@@ -15,24 +15,24 @@ import (
 	"golang.org/x/image/draw"
 )
 
-// ImageCompressOptions 图片压缩选项
+// ImageCompressOptions 图片压缩选项。
 type ImageCompressOptions struct {
 	MaxWidth  int // 最大宽度（像素），0 表示不限制
 	MaxHeight int // 最大高度（像素），0 表示不限制
 	Quality   int // JPEG 质量 (1-100)，PNG 忽略此参数
 }
 
-// DefaultImageCompressOptions 默认图片压缩选项
+// DefaultImageCompressOptions 默认图片压缩选项。
 var DefaultImageCompressOptions = ImageCompressOptions{
 	MaxWidth:  1920, // 最大宽度 1920px
 	MaxHeight: 1080, // 最大高度 1080px
 	Quality:   85,   // JPEG 质量 85
 }
 
-// CompressImage 压缩图片
-// inputPath: 输入图片路径
-// outputPath: 输出图片路径
-// options: 压缩选项（可选，传 nil 使用默认值）
+// CompressImage 压缩图片。
+// inputPath: 输入图片路径。
+// outputPath: 输出图片路径。
+// options: 压缩选项（可选，传 nil 使用默认值）。
 func CompressImage(inputPath, outputPath string, options *ImageCompressOptions) error {
 	// 1. 参数校验
 	if inputPath == "" || outputPath == "" {
@@ -101,8 +101,8 @@ func CompressImage(inputPath, outputPath string, options *ImageCompressOptions) 
 	return nil
 }
 
-// CompressImageFromReader 从 io.Reader 压缩图片到 io.Writer
-// 适用于不需要保存到文件的场景（如直接上传到 OSS）
+// CompressImageFromReader 从 io.Reader 压缩图片到 io.Writer。
+// 适用于不需要保存到文件的场景（如直接上传到 OSS）。
 func CompressImageFromReader(reader io.Reader, writer io.Writer, format string, options *ImageCompressOptions) error {
 	// 1. 使用默认选项
 	if options == nil {
@@ -150,7 +150,7 @@ func CompressImageFromReader(reader io.Reader, writer io.Writer, format string, 
 	return nil
 }
 
-// calculateResizeSize 计算缩放后的尺寸（保持宽高比）
+// calculateResizeSize 计算缩放后的尺寸（保持宽高比）。
 func calculateResizeSize(width, height, maxWidth, maxHeight int) (int, int) {
 	// 如果没有设置最大尺寸限制，返回原始尺寸
 	if maxWidth <= 0 && maxHeight <= 0 {
@@ -183,7 +183,7 @@ func calculateResizeSize(width, height, maxWidth, maxHeight int) (int, int) {
 	return newWidth, newHeight
 }
 
-// resizeImage 缩放图片
+// resizeImage 缩放图片。
 func resizeImage(src image.Image, width, height int) image.Image {
 	dst := image.NewRGBA(image.Rect(0, 0, width, height))
 	// 使用高质量的 Lanczos3 算法进行缩放
@@ -191,7 +191,7 @@ func resizeImage(src image.Image, width, height int) image.Image {
 	return dst
 }
 
-// GetImageInfo 获取图片信息
+// GetImageInfo 获取图片信息。
 func GetImageInfo(filePath string) (width, height int, format string, err error) {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -207,7 +207,7 @@ func GetImageInfo(filePath string) (width, height int, format string, err error)
 	return config.Width, config.Height, format, nil
 }
 
-// CompressImageToBytes 将图片压缩为字节数组
+// CompressImageToBytes 将图片压缩为字节数组。
 func CompressImageToBytes(inputPath string, options *ImageCompressOptions) ([]byte, error) {
 	var buf bytes.Buffer
 

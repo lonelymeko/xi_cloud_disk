@@ -1,6 +1,6 @@
 package models
 
-// ShareBasic 对应 share_basic 表（文件分享表）
+// ShareBasic 对应 share_basic 表（文件分享表）。
 type ShareBasic struct {
 	Id                 int
 	Identity           string
@@ -12,7 +12,7 @@ type ShareBasic struct {
 	DeletedAt          string `xorm:"deleted"`
 }
 
-// TableName 指定数据表名
+// TableName 指定数据表名。
 func (table ShareBasic) TableName() string {
 	return "share_basic"
 }
