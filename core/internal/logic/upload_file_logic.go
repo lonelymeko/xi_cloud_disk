@@ -46,7 +46,11 @@ func (l *UploadFileLogic) UploadFile(req *types.UploadFileRequest) (resp *types.
 	if err != nil {
 		return nil, err
 	}
-	return
+	return &types.UploadFileResponse{
+		Identity: rp.Identity,
+		Name:     rp.Name,
+		Ext:      rp.Ext,
+	}, nil
 }
 
 func (l *UploadFileLogic) InsertInToUserRepository(repositoryIdentity, ext, name string, parentId int64) (userRepositoryIdentity string, err error) {
