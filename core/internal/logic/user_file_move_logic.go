@@ -1,4 +1,4 @@
-// Code scaffolded by goctl. Safe to edit.
+// goctl 生成代码，可安全编辑。
 // goctl 1.9.2
 
 package logic
@@ -15,12 +15,14 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+// UserFileMoveLogic 用户文件移动逻辑。
 type UserFileMoveLogic struct {
 	logx.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
+// NewUserFileMoveLogic 创建用户文件移动逻辑。
 func NewUserFileMoveLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UserFileMoveLogic {
 	return &UserFileMoveLogic{
 		Logger: logx.WithContext(ctx),
@@ -29,6 +31,7 @@ func NewUserFileMoveLogic(ctx context.Context, svcCtx *svc.ServiceContext) *User
 	}
 }
 
+// UserFileMove 移动用户文件。
 func (l *UserFileMoveLogic) UserFileMove(req *types.UserFileMoveRequest) (resp *types.UserFileMoveResponse, err error) {
 	userIdentity, ok := l.ctx.Value("user_identity").(string)
 	if !ok {

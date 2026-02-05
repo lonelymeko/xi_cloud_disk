@@ -1,4 +1,4 @@
-// Code scaffolded by goctl. Safe to edit.
+// goctl 生成代码，可安全编辑。
 // goctl 1.9.2
 
 package logic
@@ -16,12 +16,14 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+// UserFolderCreateLogic 用户文件夹创建逻辑。
 type UserFolderCreateLogic struct {
 	logx.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
+// NewUserFolderCreateLogic 创建用户文件夹创建逻辑。
 func NewUserFolderCreateLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UserFolderCreateLogic {
 	return &UserFolderCreateLogic{
 		Logger: logx.WithContext(ctx),
@@ -30,6 +32,7 @@ func NewUserFolderCreateLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 	}
 }
 
+// UserFolderCreate 创建用户文件夹。
 func (l *UserFolderCreateLogic) UserFolderCreate(req *types.UserFolderCreateRequest) (resp *types.UserFolderCreateResponse, err error) {
 	// 获取用户身份
 	userIdentity, ok := l.ctx.Value("user_identity").(string)

@@ -12,6 +12,7 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+// StartRecycleJob 启动回收站清理任务。
 func StartRecycleJob(ctx context.Context, svcCtx *svc.ServiceContext) {
 	interval := utils.RecycleScanInterval()
 	go func() {
@@ -28,6 +29,7 @@ func StartRecycleJob(ctx context.Context, svcCtx *svc.ServiceContext) {
 	}()
 }
 
+// purgeExpired 清理过期删除的文件。
 func purgeExpired(ctx context.Context, svcCtx *svc.ServiceContext) {
 	now := time.Now().Format(common.DataTimeFormat)
 	var expired []models.UserRepository

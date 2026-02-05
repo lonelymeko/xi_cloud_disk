@@ -1,4 +1,4 @@
-// Code scaffolded by goctl. Safe to edit.
+// goctl 生成代码，可安全编辑。
 // goctl 1.9.2
 
 package logic
@@ -14,12 +14,14 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+// UserDetailLogic 用户详情逻辑。
 type UserDetailLogic struct {
 	logx.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
+// NewUserDetailLogic 创建用户详情逻辑。
 func NewUserDetailLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UserDetailLogic {
 	return &UserDetailLogic{
 		Logger: logx.WithContext(ctx),
@@ -28,6 +30,7 @@ func NewUserDetailLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UserDe
 	}
 }
 
+// UserDetail 获取用户详情。
 func (l *UserDetailLogic) UserDetail(req *types.UserDetailRequest) (resp *types.UserDetailResponse, err error) {
 	resp = &types.UserDetailResponse{}
 	ub := new(models.UserBasic)

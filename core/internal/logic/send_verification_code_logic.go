@@ -1,4 +1,4 @@
-// Code scaffolded by goctl. Safe to edit.
+// goctl 生成代码，可安全编辑。
 // goctl 1.9.2
 
 package logic
@@ -17,12 +17,14 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+// SendVerificationCodeLogic 发送验证码逻辑。
 type SendVerificationCodeLogic struct {
 	logx.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
+// NewSendVerificationCodeLogic 创建发送验证码逻辑。
 func NewSendVerificationCodeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SendVerificationCodeLogic {
 	return &SendVerificationCodeLogic{
 		Logger: logx.WithContext(ctx),
@@ -31,6 +33,7 @@ func NewSendVerificationCodeLogic(ctx context.Context, svcCtx *svc.ServiceContex
 	}
 }
 
+// SendVerificationCode 发送验证码。
 func (l *SendVerificationCodeLogic) SendVerificationCode(req *types.SendVerificationCodeRequest) (resp *types.SendVerificationCodeResponse, err error) {
 	// 生成随机 6 位数验证码
 	n, err := rand.Int(rand.Reader, big.NewInt(1000000))
