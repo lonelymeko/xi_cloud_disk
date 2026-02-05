@@ -15,30 +15,6 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 	server.AddRoutes(
 		[]rest.Route{
 			{
-				Method:  http.MethodGet,
-				Path:    "/health",
-				Handler: HealthHandler(serverCtx),
-			},
-			{
-				Method:  http.MethodHead,
-				Path:    "/health",
-				Handler: HealthHandler(serverCtx),
-			},
-			{
-				Method:  http.MethodGet,
-				Path:    "/ready",
-				Handler: ReadyHandler(serverCtx),
-			},
-			{
-				Method:  http.MethodHead,
-				Path:    "/ready",
-				Handler: ReadyHandler(serverCtx),
-			},
-		},
-	)
-	server.AddRoutes(
-		[]rest.Route{
-			{
 				Method:  http.MethodPost,
 				Path:    "/detail",
 				Handler: UserDetailHandler(serverCtx),
@@ -95,11 +71,6 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 					Method:  http.MethodPost,
 					Path:    "/user/list",
 					Handler: UserFileListHandler(serverCtx),
-				},
-				{
-					Method:  http.MethodPost,
-					Path:    "/user/repository",
-					Handler: UserRepositoryHandler(serverCtx),
 				},
 			}...,
 		),

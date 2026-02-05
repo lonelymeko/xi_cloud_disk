@@ -68,9 +68,6 @@ service core-api {
 	@handler UploadFileHandler
 	post /upload (UploadFileRequest) returns (UploadFileResponse)
 
-	@handler UserRepositoryHandler
-	post /user/repository (UserRepositoryRequest) returns (UserRepositoryResponse)
-
 	// 用户文件列表
 	@handler UserFileListHandler
 	post /user/list (UserFileListRequest) returns (UserFileListResponse)
@@ -111,29 +108,15 @@ service core-api {
 }
 
 type UploadFileRequest {
-	Hash string `json:"hash,optional"`
-	Name string `json:"name,optional"`
-	Ext  string `json:"ext,optional"`
-	Size int64  `json:"size,optional"`
-	Path string `json:"path,optional"`
+	Hash     string `json:"hash,optional"`
+	Name     string `json:"name,optional"`
+	Ext      string `json:"ext,optional"`
+	Size     int64  `json:"size,optional"`
+	Path     string `json:"path,optional"`
+	ParentId int64  `json:"parent_id,optional"`
 }
 
-type UploadFileResponse {
-	Identity string `json:"identity"`
-	Name     string `json:"name"`
-	Ext      string `json:"ext"`
-}
-
-type UserRepositoryRequest {
-	ParentId           int64  `json:"parent_id"`
-	RepositoryIdentity string `json:"repository_identity"`
-	Name               string `json:"name"`
-	Ext                string `json:"ext"`
-}
-
-type UserRepositoryResponse {
-	Identity string `json:"identity"`
-}
+type UploadFileResponse {}
 
 type UserFileListRequest {
 	id   int64 `json:"id,optional"`

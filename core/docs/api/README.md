@@ -235,3 +235,21 @@ openapi-generator-cli generate -i file.yaml -g go -o ./client/go
 **文档版本：** v1.0.0  
 **最后更新：** 2026-02-05  
 **维护者：** Cloud Disk Team
+
+```mermaid
+mindmap
+  root((XiCloudDisk))
+    用户模块
+      密码登录
+      邮箱注册
+      个人资料详情
+    存储池模块
+      中心存储池资源管理
+        文件存储
+      个人存储池资源管理
+        文件关联存储
+        文件夹层级管理
+    文件共享模块
+      文件分享
+```
+
