@@ -66,15 +66,14 @@ func OSSUpload() func(region, bucket, key string, body io.Reader) (string, error
 // UploadToOSS 上传文件到 OSS。
 func UploadToOSS(fileReader io.Reader, originalFilename string) (string, error) {
 	key := ossKeyGen(originalFilename)
-
+	if err := ossLoadEnv(); err != nil {
+		panic(err)
+	}
 	var (
 		region     = OSSRegionValue()
 		bucketName = OSSBucketNameValue()
 		objectName = key
 	)
-	if err := ossLoadEnv(); err != nil {
-		panic(err)
-	}
 	etag, err := ossUpload(region, bucketName, objectName, fileReader)
 	if err != nil {
 		return "", fmt.Errorf("failed to put object: %w", err)

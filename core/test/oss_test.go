@@ -206,6 +206,8 @@ func TestOSSUploadDownloadDelete_Integration(t *testing.T) {
 	if accessKey == "" || accessSecret == "" || region == "" || bucket == "" {
 		t.Skip("oss env not set")
 	}
+	setEnv(t, "OSS_REGION", region)
+	setEnv(t, "OSS_HOST", "")
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	if err := utils.OSSConnectivity(ctx); err != nil {
