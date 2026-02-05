@@ -1,4 +1,4 @@
-// Code scaffolded by goctl. Safe to edit.
+// goctl 生成代码，可安全编辑。
 // goctl 1.9.2
 
 package handler
@@ -15,6 +15,7 @@ import (
 	"cloud_disk/core/common"
 )
 
+// UserDetailHandler 用户详情处理入口。
 func UserDetailHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.UserDetailRequest

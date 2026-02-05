@@ -11,6 +11,7 @@ import (
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
 
+// DownloadURLHandler 下载链接处理入口。
 func DownloadURLHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.DownloadURLRequest

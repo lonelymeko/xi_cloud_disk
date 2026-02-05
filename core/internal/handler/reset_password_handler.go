@@ -11,6 +11,7 @@ import (
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
 
+// ResetPasswordHandler 重置密码处理入口。
 func ResetPasswordHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.ResetPasswordRequest

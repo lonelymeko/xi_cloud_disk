@@ -1,4 +1,4 @@
-// Code scaffolded by goctl. Safe to edit.
+// goctl 生成代码，可安全编辑。
 // goctl 1.9.2
 
 package handler
@@ -22,6 +22,7 @@ import (
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
 
+// UploadFileHandler 文件上传处理入口。
 func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.UploadFileRequest
