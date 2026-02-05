@@ -3,6 +3,16 @@
 
 package types
 
+type ChangePasswordRequest struct {
+	Identity    string `json:"identity"`
+	OldPassword string `json:"old_password"`
+	NewPassword string `json:"new_password"`
+}
+
+type ChangePasswordResponse struct {
+	Message string `json:"message"`
+}
+
 type CreateShareRecordRequest struct {
 	Identity    string `json:"identity"`
 	ExpiredTime int    `json:"expired_time"`
@@ -24,8 +34,8 @@ type GetShareRecordResponse struct {
 }
 
 type LoginRequest struct {
-	Name     string `json:"name"`     // 用户名或邮箱
-	Password string `json:"password"` // 密码
+	Name     string `json:"name,optional"`     // 用户名或邮箱
+	Password string `json:"password,optional"` // 密码
 }
 
 type LoginResponse struct {
@@ -34,10 +44,10 @@ type LoginResponse struct {
 }
 
 type RegisterRequest struct {
-	Name     string `json:"name"`     // 用户名
-	Email    string `json:"email"`    // 邮箱
-	Password string `json:"password"` // 密码
-	Code     string `json:"code"`
+	Name     string `json:"name,optional"`     // 用户名
+	Email    string `json:"email,optional"`    // 邮箱
+	Password string `json:"password,optional"` // 密码
+	Code     string `json:"code,optional"`
 }
 
 type RegisterResponse struct {
@@ -45,20 +55,10 @@ type RegisterResponse struct {
 	Name  string `json:"name"`
 }
 
-type ChangePasswordRequest struct {
-	Identity    string `json:"identity"`
-	OldPassword string `json:"old_password"`
-	NewPassword string `json:"new_password"`
-}
-
-type ChangePasswordResponse struct {
-	Message string `json:"message"`
-}
-
 type ResetPasswordRequest struct {
-	Email       string `json:"email"`
-	Code        string `json:"code"`
-	NewPassword string `json:"new_password"`
+	Email       string `json:"email,optional"`
+	Code        string `json:"code,optional"`
+	NewPassword string `json:"new_password,optional"`
 }
 
 type ResetPasswordResponse struct {
@@ -76,7 +76,7 @@ type SaveResourceResponse struct {
 }
 
 type SendVerificationCodeRequest struct {
-	Email string `json:"email"` // 邮箱地址
+	Email string `json:"email,optional"` // 邮箱地址
 }
 
 type SendVerificationCodeResponse struct {
@@ -84,12 +84,12 @@ type SendVerificationCodeResponse struct {
 }
 
 type UploadFileRequest struct {
-	Hash     string `json:"hash,omitempty"`
-	Name     string `json:"name,omitempty"`
-	Ext      string `json:"ext,omitempty"`
-	Size     int64  `json:"size,omitempty"`
-	Path     string `json:"path,omitempty"`
-	ParentId int64  `json:"parent_id,omitempty"`
+	Hash     string `json:"hash,optional"`
+	Name     string `json:"name,optional"`
+	Ext      string `json:"ext,optional"`
+	Size     int64  `json:"size,optional"`
+	Path     string `json:"path,optional"`
+	ParentId int64  `json:"parent_id,optional"`
 }
 
 type UploadFileResponse struct {
@@ -115,9 +115,9 @@ type UserFile struct {
 }
 
 type UserFileListRequest struct {
-	Id   int64 `json:"id"`
-	Page int   `json:"page"`
-	Size int   `json:"size"`
+	Id   int64 `json:"id,optional"`
+	Page int   `json:"page,optional"`
+	Size int   `json:"size,optional"`
 }
 
 type UserFileListResponse struct {

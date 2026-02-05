@@ -225,3 +225,4 @@ type SaveResourceRequest {
 type SaveResourceResponse {
 	Identity string `json:"identity"`
 }
+

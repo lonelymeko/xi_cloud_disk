@@ -126,7 +126,7 @@ func UploadToOSSMultipart(filePath string, originalFilename string, fileSize int
 	logx.Infof("分片上传完成: Bucket=%s, Key=%s, ETag=%s",
 		*completeResult.Bucket, *completeResult.Key, *completeResult.ETag)
 
-	return fmt.Sprintf("https://%s.%s.aliyuncs.com/%s", bucketName, region, objectName), nil
+	return fmt.Sprintf("https://%s.oss-%s.aliyuncs.com/%s", bucketName, region, objectName), nil
 }
 
 // uploadPartsConfig 分片上传配置

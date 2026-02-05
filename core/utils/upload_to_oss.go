@@ -72,5 +72,5 @@ func UploadToOSS(fileReader io.Reader, originalFilename string) (string, error) 
 	}
 
 	fmt.Printf("put object sucessfully, ETag :%v\n", etag)
-	return fmt.Sprintf("https://%s.%s.aliyuncs.com/%s", bucketName, region, objectName), nil
+	return fmt.Sprintf("https://%s.oss-%s.aliyuncs.com/%s", bucketName, region, objectName), nil
 }
