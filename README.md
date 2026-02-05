@@ -51,8 +51,8 @@
 
 ```bash
 # 克隆项目
-git clone https://github.com/your-username/cloud_disk.git
-cd cloud_disk/core
+git clone https://github.com/lonelymeko/xi_cloud_disk.git
+cd xi_cloud_disk/core
 
 # 安装 Go 依赖
 go mod download
