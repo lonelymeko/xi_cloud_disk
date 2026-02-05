@@ -95,7 +95,7 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		// 如果文件信息存在：
 		if has {
 			l := logic.NewUploadFileLogic(r.Context(), svcCtx)
-			resp, err := l.UploadFile(&req, has)
+			resp, err := l.UploadFile(&req, has, rp.Identity)
 			common.Response(r, w, resp, err)
 			return
 		}
@@ -255,7 +255,7 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		req.Hash = hash
 
 		l := logic.NewUploadFileLogic(r.Context(), svcCtx)
-		resp, err := l.UploadFile(&req, has)
+		resp, err := l.UploadFile(&req, has, rp.Identity)
 		common.Response(r, w, resp, err)
 	}
 }

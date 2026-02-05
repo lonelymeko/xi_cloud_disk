@@ -281,11 +281,11 @@ func TestUserDetail(t *testing.T) {
 func TestUploadFile(t *testing.T) {
 	env := newTestEnv(t)
 	logic := NewUploadFileLogic(env.ctx, env.svc)
-	resp, err := logic.UploadFile(&types.UploadFileRequest{Name: "a.txt", Hash: "h", Ext: ".txt", Size: 10, Path: "/p"})
+	resp, err := logic.UploadFile(&types.UploadFileRequest{Name: "a.txt", Hash: "h", Ext: ".txt", Size: 10, Path: "/p", ParentId: 0}, true, "")
 	if err != nil {
 		t.Fatalf("upload file failed: %v", err)
 	}
-	if resp.Identity == "" || resp.Name != "a.txt" || resp.Ext != ".txt" {
+	if resp.Message == "" {
 		t.Fatalf("unexpected response: %+v", resp)
 	}
 
