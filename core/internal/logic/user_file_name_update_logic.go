@@ -6,6 +6,7 @@ package logic
 import (
 	"context"
 
+	"cloud_disk/core/common"
 	"cloud_disk/core/internal/svc"
 	"cloud_disk/core/internal/types"
 	"cloud_disk/core/models"
@@ -36,7 +37,7 @@ func (l *UserFileNameUpdateLogic) UserFileNameUpdate(req *types.UserFileNameUpda
 		return nil, errors.New("用户身份验证失败")
 	}
 	// 先查询该层级是否有同名文件
-	cnt, err := l.svcCtx.DBEngine.Table("user_repository").Where("name = ? AND parent_id = (SELECT parent_id FROM user_repository WHERE identity = ? AND user_identity = ?) AND user_identity = ?", req.Name, req.Identity, userIdentity, userIdentity).Count(new(models.UserRepository))
+	cnt, err := l.svcCtx.DBEngine.Table("user_repository").Where("name = ? AND parent_id = (SELECT parent_id FROM user_repository WHERE identity = ? AND user_identity = ? AND (status != ? OR status IS NULL)) AND user_identity = ? AND (status != ? OR status IS NULL)", req.Name, req.Identity, userIdentity, common.StatusDeleted, userIdentity, common.StatusDeleted).Count(new(models.UserRepository))
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +45,7 @@ func (l *UserFileNameUpdateLogic) UserFileNameUpdate(req *types.UserFileNameUpda
 		return nil, errors.New("该目录下已存在同名文件")
 	}
 	// 修改文件名
-	_, err = l.svcCtx.DBEngine.Table("user_repository").Where("identity = ? AND user_identity = ?", req.Identity, userIdentity).Update(data)
+	_, err = l.svcCtx.DBEngine.Table("user_repository").Where("identity = ? AND user_identity = ? AND (status != ? OR status IS NULL)", req.Identity, userIdentity, common.StatusDeleted).Update(data)
 	if err != nil {
 		return nil, err
 	}

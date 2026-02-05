@@ -219,21 +219,18 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		}
 
 		// 根据文件大小选择上传方式
-		var OssPath string
+		var objectKey string
 		if actualSize > common.MultipartUploadThreshold {
-			// 大文件：使用分片上传
 			logx.Infof("文件大小 %.2f MB 超过阈值，使用分片上传",
 				float64(actualSize)/(1024*1024))
 
-			// 关闭文件句柄（分片上传会重新打开）
 			if uploadFile != tempFile {
 				uploadFile.Close()
 			}
 
-			OssPath, err = utils.UploadToOSSMultipart(finalUploadPath, uploadFilename, actualSize)
+			objectKey, err = utils.UploadToOSSMultipart(finalUploadPath, uploadFilename, actualSize)
 		} else {
-			// 小文件：使用普通上传
-			OssPath, err = utils.UploadToOSS(uploadFile, uploadFilename)
+			objectKey, err = utils.UploadToOSS(uploadFile, uploadFilename)
 		}
 
 		// 上传完成后，立即清理压缩文件
@@ -251,7 +248,7 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		req.Ext = path.Ext(fileHeader.Filename)
 		req.Size = actualSize // 使用实际上传的文件大小（压缩后）
 		req.Name = fileHeader.Filename
-		req.Path = OssPath
+		req.ObjectKey = objectKey
 		req.Hash = hash
 
 		l := logic.NewUploadFileLogic(r.Context(), svcCtx)

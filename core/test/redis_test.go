@@ -57,6 +57,16 @@ func (f *fakeRedisClient) Set(ctx context.Context, key string, value interface{}
 	return redis.NewStatusResult("OK", nil)
 }
 
+func (f *fakeRedisClient) SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.BoolCmd {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if _, ok := f.data[key]; ok {
+		return redis.NewBoolResult(false, nil)
+	}
+	f.data[key] = fmt.Sprint(value)
+	return redis.NewBoolResult(true, nil)
+}
+
 func (f *fakeRedisClient) Del(ctx context.Context, keys ...string) *redis.IntCmd {
 	f.mu.Lock()
 	var count int64

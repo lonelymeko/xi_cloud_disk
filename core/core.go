@@ -7,6 +7,7 @@ import (
 	"cloud_disk/core/common"
 	"cloud_disk/core/internal/config"
 	"cloud_disk/core/internal/handler"
+	"cloud_disk/core/internal/logic"
 	"cloud_disk/core/internal/svc"
 	"context"
 	"flag"
@@ -95,6 +96,7 @@ func main() {
 	defer server.Stop()
 
 	ctx := svc.NewServiceContext(c)
+	logic.StartRecycleJob(context.Background(), ctx)
 	handler.RegisterHandlers(server, ctx)
 
 	checkCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)

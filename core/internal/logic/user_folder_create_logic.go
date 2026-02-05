@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 
+	"cloud_disk/core/common"
 	"cloud_disk/core/internal/svc"
 	"cloud_disk/core/internal/types"
 	"cloud_disk/core/models"
@@ -49,6 +50,7 @@ func (l *UserFolderCreateLogic) UserFolderCreate(req *types.UserFolderCreateRequ
 		UserIdentity: userIdentity,
 		ParentId:     req.ParentId,
 		Name:         req.Name,
+		Status:       common.StatusActive,
 	}
 	_, err = l.svcCtx.DBEngine.Table("user_repository").Insert(data)
 	if err != nil {

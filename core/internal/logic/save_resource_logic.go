@@ -6,6 +6,7 @@ package logic
 import (
 	"context"
 
+	"cloud_disk/core/common"
 	"cloud_disk/core/internal/svc"
 	"cloud_disk/core/internal/types"
 	"cloud_disk/core/models"
@@ -35,7 +36,7 @@ func (l *SaveResourceLogic) SaveResource(req *types.SaveResourceRequest) (resp *
 		return nil, errors.New("用户身份验证失败")
 	}
 	// 查询该层级是否有同名文件
-	cnt, err := l.svcCtx.DBEngine.Table("user_repository").Where("name = ? AND parent_id = ? AND user_identity = ?", req.Name, req.ParentId, userIdentity).Count(new(models.UserRepository))
+	cnt, err := l.svcCtx.DBEngine.Table("user_repository").Where("name = ? AND parent_id = ? AND user_identity = ? AND (status != ? OR status IS NULL)", req.Name, req.ParentId, userIdentity, common.StatusDeleted).Count(new(models.UserRepository))
 	if err != nil {
 		return nil, err
 	}
@@ -60,6 +61,7 @@ func (l *SaveResourceLogic) SaveResource(req *types.SaveResourceRequest) (resp *
 		RepositoryIdentity: rp.RepositoryIdentity,
 		Ext:                rp.Ext,
 		Name:               req.Name,
+		Status:             common.StatusActive,
 	}
 	_, err = l.svcCtx.DBEngine.Insert(&data)
 	if err != nil {

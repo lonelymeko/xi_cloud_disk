@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 
+	"cloud_disk/core/common"
 	"cloud_disk/core/internal/svc"
 	"cloud_disk/core/internal/types"
 	"cloud_disk/core/models"
@@ -35,42 +36,38 @@ func (l *UploadFileLogic) UploadFile(req *types.UploadFileRequest, isExisted boo
 		return nil, errors.New("用户身份验证失败")
 	}
 	ur := new(models.UserRepository)
-	// 特判：文件存在且上传的文件在当前父目录下已存在且用户 id 一致
 	if isExisted {
-		had, err := l.svcCtx.DBEngine.Table("user_repository").Where("repository_identity=? AND Identity", repositoryIdentity, userIdentity).Get(ur)
+		had, err := l.svcCtx.DBEngine.Table("user_repository").
+			Where("repository_identity = ? AND user_identity = ? AND parent_id = ?", repositoryIdentity, userIdentity, req.ParentId).
+			Get(ur)
 		if err != nil {
 			return nil, err
 		}
-		// 直接返回：文件已存在
 		if had {
-			return &types.UploadFileResponse{
-				Message: "文件已存在",
-			}, nil
+			return &types.UploadFileResponse{Message: "文件已存在"}, nil
 		}
 	} else {
-		// 文件不存在就存入中央数据库
 		rp := &models.RepositoryPool{
-			Name:     req.Name,
-			Hash:     req.Hash,
-			Ext:      req.Ext,
-			Size:     req.Size,
-			Path:     req.Path,
-			Identity: utils.UUID(),
+			Name:      req.Name,
+			Hash:      req.Hash,
+			Ext:       req.Ext,
+			Size:      req.Size,
+			ObjectKey: req.ObjectKey,
+			Status:    common.StatusActive,
+			Identity:  utils.UUID(),
 		}
 		_, err = l.svcCtx.DBEngine.Insert(rp)
 		if err != nil {
 			return nil, err
 		}
+		repositoryIdentity = rp.Identity
 	}
-	// 最终都要逻辑添加到用户文件表
-	_, err = l.InsertInToUserRepository(userIdentity, req.Ext, req.Name, req.ParentId)
+	_, err = l.InsertInToUserRepository(repositoryIdentity, req.Ext, req.Name, req.ParentId)
 	if err != nil {
 		return nil, err
 	}
 
-	return &types.UploadFileResponse{
-		Message: "文件上传开始",
-	}, nil
+	return &types.UploadFileResponse{Message: "文件上传开始"}, nil
 }
 
 func (l *UploadFileLogic) InsertInToUserRepository(repositoryIdentity, ext, name string, parentId int64) (userRepositoryIdentity string, err error) {
@@ -81,6 +78,7 @@ func (l *UploadFileLogic) InsertInToUserRepository(repositoryIdentity, ext, name
 		ParentId:           parentId,
 		Ext:                ext,
 		Name:               name,
+		Status:             common.StatusActive,
 	}
 	_, err = l.svcCtx.DBEngine.Insert(ur)
 	if err != nil {

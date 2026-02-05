@@ -111,6 +111,9 @@ func (f *fakeRedisClient) Get(ctx context.Context, key string) *redis.StringCmd 
 func (f *fakeRedisClient) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd {
 	return redis.NewStatusResult("", nil)
 }
+func (f *fakeRedisClient) SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.BoolCmd {
+	return redis.NewBoolResult(true, nil)
+}
 func (f *fakeRedisClient) Del(ctx context.Context, keys ...string) *redis.IntCmd {
 	return redis.NewIntResult(0, nil)
 }

@@ -6,10 +6,13 @@ package logic
 import (
 	"context"
 	"errors"
+	"time"
 
+	"cloud_disk/core/common"
 	"cloud_disk/core/internal/svc"
 	"cloud_disk/core/internal/types"
 	"cloud_disk/core/models"
+	"cloud_disk/core/utils"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -63,18 +66,40 @@ func (l *UserFolderDeleteLogic) UserFolderDelete(req *types.UserFolderDeleteRequ
 		return nil, errors.New("文件或文件夹不存在")
 	}
 
-	// 批量软删除（使用硬删除，xorm 的 Delete 方法）
+	now := time.Now()
+	nowStr := now.Format(common.DataTimeFormat)
+	expireStr := now.Add(utils.RecycleTTL()).Format(common.DataTimeFormat)
 	affected, err := l.svcCtx.DBEngine.
 		Table("user_repository").
 		In("identity", idsToDelete).
 		Where("user_identity = ?", userIdentity).
-		Delete(&models.UserRepository{})
+		Update(map[string]any{
+			"status":     common.StatusDeleted,
+			"deleted_at": nowStr,
+			"expire_at":  expireStr,
+		})
 
 	if err != nil {
 		logx.Errorf("删除失败: %v", err)
 		return nil, err
 	}
 
+	if affected > 0 {
+		var repos []models.UserRepository
+		_ = l.svcCtx.DBEngine.Table("user_repository").In("identity", idsToDelete).Find(&repos)
+		logs := make([]models.FileEventLog, 0, len(repos))
+		for _, item := range repos {
+			logs = append(logs, models.FileEventLog{
+				Identity:           utils.UUID(),
+				RepositoryIdentity: item.RepositoryIdentity,
+				UserIdentity:       userIdentity,
+				EventType:          common.EventDelete,
+			})
+		}
+		if len(logs) > 0 {
+			_, _ = l.svcCtx.DBEngine.Insert(&logs)
+		}
+	}
 	logx.Infof("成功删除 %d 个项目", affected)
 
 	resp = &types.UserFolderDeleteResponse{}

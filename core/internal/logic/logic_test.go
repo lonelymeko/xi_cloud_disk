@@ -81,6 +81,16 @@ func (f *fakeRedisClient) Set(ctx context.Context, key string, value interface{}
 	return redis.NewStatusResult("OK", nil)
 }
 
+func (f *fakeRedisClient) SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.BoolCmd {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if _, ok := f.data[key]; ok {
+		return redis.NewBoolResult(false, nil)
+	}
+	f.data[key] = fmt.Sprint(value)
+	return redis.NewBoolResult(true, nil)
+}
+
 func (f *fakeRedisClient) Del(ctx context.Context, keys ...string) *redis.IntCmd {
 	f.mu.Lock()
 	var count int64
@@ -281,7 +291,7 @@ func TestUserDetail(t *testing.T) {
 func TestUploadFile(t *testing.T) {
 	env := newTestEnv(t)
 	logic := NewUploadFileLogic(env.ctx, env.svc)
-	resp, err := logic.UploadFile(&types.UploadFileRequest{Name: "a.txt", Hash: "h", Ext: ".txt", Size: 10, Path: "/p", ParentId: 0}, true, "")
+	resp, err := logic.UploadFile(&types.UploadFileRequest{Name: "a.txt", Hash: "h", Ext: ".txt", Size: 10, ObjectKey: "k", ParentId: 0}, false, "")
 	if err != nil {
 		t.Fatalf("upload file failed: %v", err)
 	}
@@ -318,7 +328,7 @@ func TestUserFolderCreate(t *testing.T) {
 
 func TestUserFileList(t *testing.T) {
 	env := newTestEnv(t)
-	repo := &models.RepositoryPool{Identity: "r1", Name: "file", Ext: ".txt", Size: 12, Path: "/p"}
+	repo := &models.RepositoryPool{Identity: "r1", Name: "file", Ext: ".txt", Size: 12, ObjectKey: "k"}
 	if _, err := env.eng.InsertOne(repo); err != nil {
 		t.Fatalf("insert repo failed: %v", err)
 	}
@@ -427,7 +437,7 @@ func TestGetShareRecord(t *testing.T) {
 	if _, err := env.eng.InsertOne(share); err != nil {
 		t.Fatalf("insert share failed: %v", err)
 	}
-	repo := &models.RepositoryPool{Identity: "r1", Name: "file", Ext: ".txt", Size: 12, Path: "/p"}
+	repo := &models.RepositoryPool{Identity: "r1", Name: "file", Ext: ".txt", Size: 12, ObjectKey: "k"}
 	if _, err := env.eng.InsertOne(repo); err != nil {
 		t.Fatalf("insert repo failed: %v", err)
 	}

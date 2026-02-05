@@ -57,6 +57,7 @@ func (l *UserFileListLogic) UserFileList(req *types.UserFileListRequest) (resp *
 			"user_repository.repository_identity, user_repository.ext, "+
 			"repository_pool.path, repository_pool.size").
 		Join("LEFT", "repository_pool", "user_repository.repository_identity = repository_pool.identity").
+		Where("user_repository.status != ? OR user_repository.status IS NULL", common.StatusDeleted).
 		// 筛选出「从未被标记删除」或「删除标记被重置为零值」的user_repository数据，即「有效数据」。
 		Where("user_repository.deleted_at = ? OR user_repository.deleted_at IS NULL", time.Time{}.Format(common.DataTimeFormat)).
 		Limit(int(size), int(offset)).
@@ -69,6 +70,7 @@ func (l *UserFileListLogic) UserFileList(req *types.UserFileListRequest) (resp *
 	// TODO （可优化： 把总数存入 Redis）
 	cnt, err = l.svcCtx.DBEngine.Table("user_repository").
 		Where("parent_id = ? AND user_identity = ?", req.Id, userIdentity).
+		Where("status != ? OR status IS NULL", common.StatusDeleted).
 		Count(new(models.UserRepository))
 	if err != nil {
 		return nil, err
