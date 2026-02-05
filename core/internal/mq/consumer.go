@@ -41,8 +41,8 @@ func (c *Consumer) Start() {
 	}
 
 	// 3. 设置 QoS (关键！限制并发为 1)
-	if err := c.channel.Qos(1, 0, false); err != nil {
-		logx.Errorf("设置 QoS 失败: %v", err)
+	if qosErr := c.channel.Qos(1, 0, false); qosErr != nil {
+		logx.Errorf("设置 QoS 失败: %v", qosErr)
 		return
 	}
 
@@ -116,9 +116,9 @@ func (c *Consumer) processFile(body []byte) (err error) {
 	ur := new(models.UserRepository)
 	// 特判：文件存在且上传的文件在当前父目录下已存在且用户 id 一致
 	if task.IsExisted {
-		had, err := c.svcCtx.DBEngine.Table("user_repository").Where("repository_identity=? AND user_identity=?", task.RepositoryIdentity, task.UserIdentity).Get(ur)
-		if err != nil {
-			return err
+		had, queryErr := c.svcCtx.DBEngine.Table("user_repository").Where("repository_identity=? AND user_identity=?", task.RepositoryIdentity, task.UserIdentity).Get(ur)
+		if queryErr != nil {
+			return queryErr
 		}
 		// 直接返回：文件已存在
 		if had {

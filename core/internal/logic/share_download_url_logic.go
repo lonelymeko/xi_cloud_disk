@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"cloud_disk/core/common"
@@ -11,6 +12,7 @@ import (
 	"cloud_disk/core/models"
 	"cloud_disk/core/utils"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -68,9 +70,54 @@ func (l *ShareDownloadURLLogic) ShareDownloadURL(req *types.ShareDownloadURLRequ
 		return nil, errors.New("文件未绑定对象键")
 	}
 
+	cacheKey := fmt.Sprintf("share_download_url:%s:%d", req.ShareIdentity, expires)
+	if url, ok := getCachedShareURL(l.ctx, l.svcCtx.RedisClient, cacheKey); ok {
+		return &types.ShareDownloadURLResponse{URL: url, Expires: expires}, nil
+	}
+
+	lockKey := "lock:" + cacheKey
+	locked, err := utils.AcquireLock(l.ctx, l.svcCtx.RedisClient, lockKey, 10*time.Second)
+	if err != nil {
+		url, genErr := utils.PresignGetObject(l.ctx, objectKey, time.Duration(expires)*time.Second)
+		if genErr != nil {
+			return nil, genErr
+		}
+		setCachedShareURL(l.ctx, l.svcCtx.RedisClient, cacheKey, url, expires)
+		return &types.ShareDownloadURLResponse{URL: url, Expires: expires}, nil
+	}
+	if !locked {
+		time.Sleep(120 * time.Millisecond)
+		if url, ok := getCachedShareURL(l.ctx, l.svcCtx.RedisClient, cacheKey); ok {
+			return &types.ShareDownloadURLResponse{URL: url, Expires: expires}, nil
+		}
+	}
+	if locked {
+		defer utils.ReleaseLock(l.ctx, l.svcCtx.RedisClient, lockKey)
+	}
+
+	if url, ok := getCachedShareURL(l.ctx, l.svcCtx.RedisClient, cacheKey); ok {
+		return &types.ShareDownloadURLResponse{URL: url, Expires: expires}, nil
+	}
+
 	url, err := utils.PresignGetObject(l.ctx, objectKey, time.Duration(expires)*time.Second)
 	if err != nil {
 		return nil, err
 	}
+	setCachedShareURL(l.ctx, l.svcCtx.RedisClient, cacheKey, url, expires)
 	return &types.ShareDownloadURLResponse{URL: url, Expires: expires}, nil
+}
+
+func getCachedShareURL(ctx context.Context, rdb svc.RedisClient, key string) (string, bool) {
+	val, err := rdb.Get(ctx, key).Result()
+	if err == redis.Nil || err != nil {
+		return "", false
+	}
+	if val == "" {
+		return "", false
+	}
+	return val, true
+}
+
+func setCachedShareURL(ctx context.Context, rdb svc.RedisClient, key, url string, expires int) {
+	_ = rdb.Set(ctx, key, url, time.Duration(expires)*time.Second).Err()
 }

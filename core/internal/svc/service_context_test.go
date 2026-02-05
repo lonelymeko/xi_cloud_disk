@@ -46,6 +46,7 @@ func TestNewServiceContextUsesDeps(t *testing.T) {
 
 	calledInitDB := false
 	calledEnsureSchema := false
+	calledEnsureTablesHealth := false
 	calledEnsureDefaultAdmin := false
 	calledInitRedis := false
 	calledNewFileAuth := false
@@ -83,6 +84,13 @@ func TestNewServiceContextUsesDeps(t *testing.T) {
 			calledEnsureSchema = true
 			return nil
 		},
+		ensureTablesHealth: func(eng *xorm.Engine) error {
+			if eng != fakeDB {
+				t.Fatal("ensure tables health engine mismatch")
+			}
+			calledEnsureTablesHealth = true
+			return nil
+		},
 		ensureDefaultAdmin: func(eng *xorm.Engine) error {
 			if eng != fakeDB {
 				t.Fatal("ensure admin engine mismatch")
@@ -109,7 +117,7 @@ func TestNewServiceContextUsesDeps(t *testing.T) {
 	if ctx.FileAuthMiddleware == nil {
 		t.Fatal("middleware is nil")
 	}
-	if !calledInitDB || !calledEnsureSchema || !calledEnsureDefaultAdmin || !calledInitRedis || !calledNewFileAuth || !calledInitRabbitMQ {
+	if !calledInitDB || !calledEnsureSchema || !calledEnsureTablesHealth || !calledEnsureDefaultAdmin || !calledInitRedis || !calledNewFileAuth || !calledInitRabbitMQ {
 		t.Fatal("deps not fully used")
 	}
 }

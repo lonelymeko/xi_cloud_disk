@@ -88,7 +88,11 @@ func (l *UserFolderDeleteLogic) UserFolderDelete(req *types.UserFolderDeleteRequ
 		var repos []models.UserRepository
 		_ = l.svcCtx.DBEngine.Table("user_repository").In("identity", idsToDelete).Find(&repos)
 		logs := make([]models.FileEventLog, 0, len(repos))
+		repoSet := map[string]struct{}{}
 		for _, item := range repos {
+			if item.RepositoryIdentity != "" {
+				repoSet[item.RepositoryIdentity] = struct{}{}
+			}
 			logs = append(logs, models.FileEventLog{
 				Identity:           utils.UUID(),
 				RepositoryIdentity: item.RepositoryIdentity,
@@ -98,6 +102,23 @@ func (l *UserFolderDeleteLogic) UserFolderDelete(req *types.UserFolderDeleteRequ
 		}
 		if len(logs) > 0 {
 			_, _ = l.svcCtx.DBEngine.Insert(&logs)
+		}
+		for repoID := range repoSet {
+			cnt, err := l.svcCtx.DBEngine.Table("user_repository").
+				Where("repository_identity = ? AND (status != ? OR status IS NULL)", repoID, common.StatusDeleted).
+				Count(new(models.UserRepository))
+			if err != nil {
+				continue
+			}
+			if cnt == 0 {
+				_, _ = l.svcCtx.DBEngine.Table("repository_pool").
+					Where("identity = ?", repoID).
+					Update(map[string]any{
+						"status":     common.StatusDeleted,
+						"deleted_at": nowStr,
+						"expire_at":  expireStr,
+					})
+			}
 		}
 	}
 	logx.Infof("成功删除 %d 个项目", affected)

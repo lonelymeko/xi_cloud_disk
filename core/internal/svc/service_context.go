@@ -13,6 +13,7 @@ import (
 
 	"github.com/rabbitmq/amqp091-go"
 	"github.com/redis/go-redis/v9"
+	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/rest"
 	"xorm.io/xorm"
 )
@@ -39,6 +40,7 @@ type serviceDeps struct {
 	initRedis          func(string, string, int) RedisClient
 	newFileAuth        func(string, int64) rest.Middleware
 	ensureSchema       func(*xorm.Engine) error
+	ensureTablesHealth func(*xorm.Engine) error
 	ensureDefaultAdmin func(*xorm.Engine) error
 	initRabbitMQ       func(string, int, string, string, string) (*amqp091.Connection, *amqp091.Channel)
 }
@@ -51,12 +53,16 @@ var deps = serviceDeps{
 		return middleware.NewFileAuthMiddleware(secret, expire).Handle
 	},
 	ensureSchema:       utils.EnsureSchema,
+	ensureTablesHealth: utils.TablesHealthy,
 	ensureDefaultAdmin: utils.EnsureDefaultAdmin,
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
 	eng := deps.initDB(c.MySQL.DataSource)
 	_ = deps.ensureSchema(eng)
+	if err := deps.ensureTablesHealth(eng); err != nil {
+		logx.Errorf("tables health check failed: %v", err)
+	}
 	_ = deps.ensureDefaultAdmin(eng)
 	var rmqConn *amqp091.Connection
 	var rmqCh *amqp091.Channel
