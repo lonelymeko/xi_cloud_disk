@@ -40,11 +40,11 @@ func (l *UploadFileLogic) UploadFile(req *types.UploadFileRequest, isExisted boo
 	}
 	ur := new(models.UserRepository)
 	if isExisted {
-		had, err := l.svcCtx.DBEngine.Table("user_repository").
+		had, getErr := l.svcCtx.DBEngine.Table("user_repository").
 			Where("repository_identity = ? AND user_identity = ? AND parent_id = ?", repositoryIdentity, userIdentity, req.ParentId).
 			Get(ur)
-		if err != nil {
-			return nil, err
+		if getErr != nil {
+			return nil, getErr
 		}
 		if had {
 			return &types.UploadFileResponse{Message: "文件已存在"}, nil
