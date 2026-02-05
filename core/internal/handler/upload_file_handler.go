@@ -15,8 +15,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path"
-	"strings"
 
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/rest/httpx"
@@ -36,13 +34,34 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		}
 		defer file.Close()
 
-		// 复制到系统临时文件夹
-		tempFile, err := os.CreateTemp("", "upload-")
+		// 从 fileHeader 获取文件名和大小（如果 req 中没有提供）
+		if req.Name == "" {
+			req.Name = fileHeader.Filename
+		}
+		if req.Size == 0 {
+			req.Size = fileHeader.Size
+		}
+		// 从文件名提取扩展名（如果 req 中没有提供）
+		if req.Ext == "" {
+			// 获取文件扩展名
+			for i := len(fileHeader.Filename) - 1; i >= 0; i-- {
+				if fileHeader.Filename[i] == '.' {
+					req.Ext = fileHeader.Filename[i:]
+					break
+				}
+			}
+		}
+
+		// 调试日志
+		logx.Infof("文件上传信息 - Name: %s, Ext: %s, Size: %d", req.Name, req.Ext, req.Size)
+
+		// 复制到临时文件夹
+		tempFile, err := os.OpenFile("/tmp/upload-"+utils.UUID()+req.Ext, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o644)
 		if err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
 			return
 		}
-		defer os.Remove(tempFile.Name())
+
 		defer tempFile.Close()
 
 		if _, copyErr := io.Copy(tempFile, file); copyErr != nil {
@@ -92,170 +111,18 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			httpx.ErrorCtx(r.Context(), w, err)
 			return
 		}
+
 		// 如果文件信息存在：
 		if has {
 			l := logic.NewUploadFileLogic(r.Context(), svcCtx)
-			resp, err := l.UploadFile(&req, has, rp.Identity)
+			resp, err := l.UploadFile(&req, has, rp.Identity, tempFile.Name(), hash)
 			common.Response(r, w, resp, err)
 			return
 		}
-
-		// 文件不存在，进行上传
-		// 将临时文件指针重置到开头以便上传
-		if _, seekErr := tempFile.Seek(0, 0); seekErr != nil {
-			httpx.ErrorCtx(r.Context(), w, seekErr)
-			return
-		}
-
-		// 判断是否为视频或图片文件，如果是则先压缩
-		ext := strings.ToLower(path.Ext(fileHeader.Filename))
-		videoExts := map[string]bool{
-			".mp4": true, ".avi": true, ".mov": true, ".mkv": true,
-			".flv": true, ".wmv": true, ".webm": true, ".m4v": true,
-		}
-		imageExts := map[string]bool{
-			".jpg": true, ".jpeg": true, ".png": true, ".gif": true,
-			".bmp": true, ".webp": true,
-		}
-
-		var uploadFile *os.File
-		var uploadFilename string
-		var compressedFilePath string // 用于记录压缩文件路径，以便清理
-		var actualSize int64          // 实际上传的文件大小
-		var finalUploadPath string    // 最终要上传的文件路径（用于分片上传）
-
-		if videoExts[ext] {
-			// 是视频文件，需要压缩
-			compressedFile, createErr := os.CreateTemp("", "compressed-*.mp4")
-			if createErr != nil {
-				httpx.ErrorCtx(r.Context(), w, createErr)
-				return
-			}
-			compressedFilePath = compressedFile.Name()
-			// 注意：不在这里 defer，避免在秒传时也执行清理
-
-			// 使用 ffmpeg 压缩视频
-			_, compressErr := utils.CompressVideoWithFFmpeg(tempFile.Name(), compressedFile.Name(), 23, "128k")
-			if compressErr != nil {
-				compressedFile.Close()
-				os.Remove(compressedFilePath)
-				httpx.ErrorCtx(r.Context(), w, compressErr)
-				return
-			}
-
-			// 使用压缩后的文件上传
-			uploadFile = compressedFile
-			uploadFilename = fileHeader.Filename
-			finalUploadPath = compressedFile.Name()
-
-			// 将文件指针重置到开头
-			if _, seekErr := uploadFile.Seek(0, 0); seekErr != nil {
-				compressedFile.Close()
-				os.Remove(compressedFilePath)
-				httpx.ErrorCtx(r.Context(), w, seekErr)
-				return
-			}
-
-			// 获取压缩后的文件大小
-			fileInfo, statErr := uploadFile.Stat()
-			if statErr != nil {
-				compressedFile.Close()
-				os.Remove(compressedFilePath)
-				httpx.ErrorCtx(r.Context(), w, statErr)
-				return
-			}
-			actualSize = fileInfo.Size()
-		} else if imageExts[ext] {
-			// 是图片文件，需要压缩
-			compressedFile, createErr := os.CreateTemp("", "compressed-*"+ext)
-			if createErr != nil {
-				httpx.ErrorCtx(r.Context(), w, createErr)
-				return
-			}
-			compressedFilePath = compressedFile.Name()
-			tempCompressedPath := compressedFilePath
-			compressedFile.Close() // 先关闭，因为 CompressImage 会重新打开
-
-			// 使用图片压缩（最大 1920x1080，质量 85）
-			compressErr := utils.CompressImage(tempFile.Name(), tempCompressedPath, &utils.ImageCompressOptions{
-				MaxWidth:  1920,
-				MaxHeight: 1080,
-				Quality:   85,
-			})
-			if compressErr != nil {
-				os.Remove(tempCompressedPath)
-				httpx.ErrorCtx(r.Context(), w, compressErr)
-				return
-			}
-
-			// 重新打开压缩后的文件用于上传
-			compressedFile, openErr := os.Open(tempCompressedPath)
-			if openErr != nil {
-				os.Remove(tempCompressedPath)
-				httpx.ErrorCtx(r.Context(), w, openErr)
-				return
-			}
-
-			// 使用压缩后的文件上传
-			uploadFile = compressedFile
-			uploadFilename = fileHeader.Filename
-			finalUploadPath = tempCompressedPath
-
-			// 获取压缩后的文件大小
-			fileInfo, statErr := uploadFile.Stat()
-			if statErr != nil {
-				uploadFile.Close()
-				os.Remove(tempCompressedPath)
-				httpx.ErrorCtx(r.Context(), w, statErr)
-				return
-			}
-			actualSize = fileInfo.Size()
-		} else {
-			// 非视频和图片文件，直接使用临时文件
-			uploadFile = tempFile
-			uploadFilename = fileHeader.Filename
-			finalUploadPath = tempFile.Name()
-			actualSize = fileHeader.Size // 使用原始文件大小
-		}
-
-		// 根据文件大小选择上传方式
-		var OssPath string
-		if actualSize > common.MultipartUploadThreshold {
-			// 大文件：使用分片上传
-			logx.Infof("文件大小 %.2f MB 超过阈值，使用分片上传",
-				float64(actualSize)/(1024*1024))
-
-			// 关闭文件句柄（分片上传会重新打开）
-			if uploadFile != tempFile {
-				uploadFile.Close()
-			}
-
-			OssPath, err = utils.UploadToOSSMultipart(finalUploadPath, uploadFilename, actualSize)
-		} else {
-			// 小文件：使用普通上传
-			OssPath, err = utils.UploadToOSS(uploadFile, uploadFilename)
-		}
-
-		// 上传完成后，立即清理压缩文件
-		if compressedFilePath != "" {
-			uploadFile.Close()
-			os.Remove(compressedFilePath)
-		}
-
-		if err != nil {
-			httpx.ErrorCtx(r.Context(), w, err)
-			return
-		}
-
-		// 文件上传成功，保存文件信息
-		req.Ext = path.Ext(fileHeader.Filename)
-		req.Size = actualSize // 使用实际上传的文件大小（压缩后）
-		req.Name = fileHeader.Filename
-		req.Path = OssPath
-		req.Hash = hash
-
+		// 不存在
+		identity := utils.UUID()
 		l := logic.NewUploadFileLogic(r.Context(), svcCtx)
-		resp, err := l.UploadFile(&req, has, rp.Identity)
+		resp, err := l.UploadFile(&req, has, identity, tempFile.Name(), hash)
 		common.Response(r, w, resp, err)
 	}
 }

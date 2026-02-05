@@ -1,10 +1,12 @@
 package global
 
 import (
+	"cloud_disk/core/common"
 	"fmt"
 	"time"
 
 	"github.com/rabbitmq/amqp091-go"
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 // 全局 RabbitMQ 连接（包级别复用）
@@ -35,13 +37,19 @@ func InitRabbitMQ(host string, port int, username, password, vhost string) (*amq
 	if err != nil {
 		panic(fmt.Sprintf("Failed to create RabbitMQ channel: %v", err))
 	}
+
+	// 3. 声明交换机和队列
+	if err := declareRabbitMQResources(); err != nil {
+		panic(fmt.Sprintf("Failed to declare RabbitMQ resources: %v", err))
+	}
+
 	return RmqConn, RmqCh
 
 }
 
 // 重连逻辑（可选，生产环境必备）
 func reinitRabbitMQ(host string, port int, username, password, vhost string) error {
-	newConn, err := amqp091.Dial("amqp://guest:guest@localhost:5672/")
+	newConn, err := amqp091.Dial(fmt.Sprintf("amqp://%s:%s@%s:%d%s", username, password, host, port, vhost))
 	if err != nil {
 		return err
 	}
@@ -64,13 +72,13 @@ func reinitRabbitMQ(host string, port int, username, password, vhost string) err
 func declareRabbitMQResources() error {
 	// 1. 声明交换机（direct 类型，持久化）
 	err := RmqCh.ExchangeDeclare(
-		"file.process.exchange", // 交换机名
-		"direct",                // 类型
-		true,                    // 持久化
-		false,                   // 非自动删除
-		false,                   // 非内部交换机
-		false,                   // 无等待
-		nil,                     // 额外参数
+		common.ExchangeName, // 交换机名
+		"direct",            // 类型
+		true,                // 持久化
+		false,               // 非自动删除
+		false,               // 非内部交换机
+		false,               // 无等待
+		nil,                 // 额外参数
 	)
 	if err != nil {
 		return fmt.Errorf("声明交换机失败: %w", err)
@@ -78,10 +86,7 @@ func declareRabbitMQResources() error {
 
 	// 2. 声明队列（按业务阶段拆分，均为持久化）
 	queues := []string{
-		"file.process.init",
-		"file.process.compress",
-		"file.process.oss",
-		"file.process.db",
+		common.QueueName,
 	}
 	for _, queue := range queues {
 		_, err := RmqCh.QueueDeclare(
@@ -98,16 +103,17 @@ func declareRabbitMQResources() error {
 
 		// 3. 绑定队列到交换机（路由键与队列名一致）
 		err = RmqCh.QueueBind(
-			queue,                   // 队列名
-			queue,                   // 路由键
-			"file.process.exchange", // 交换机名
-			false,
-			nil,
+			queue,               // 队列名
+			common.RoutingKey,   // 路由键
+			common.ExchangeName, // 交换机名
+			false,               // 无等待
+			nil,                 // 额外参数
 		)
 		if err != nil {
 			return fmt.Errorf("绑定队列 %s 失败: %w", queue, err)
 		}
 	}
+	logx.Infof("RabbitMQ 资源声明成功: 交换机 %s, 队列 %v", common.ExchangeName, queues)
 
 	return nil
 }

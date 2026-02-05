@@ -58,6 +58,9 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	_ = deps.ensureSchema(eng)
 	_ = deps.ensureDefaultAdmin(eng)
 	rmqConn, rmqCh := deps.initRabbitMQ(c.RabbitMQ.Host, c.RabbitMQ.Port, c.RabbitMQ.Username, c.RabbitMQ.Password, c.RabbitMQ.Vhost)
+	// //启动消费者
+	// consumer := mq.NewConsumer(rmqConn)
+	// consumer.Start()
 	return &ServiceContext{
 		Config:             c,
 		DBEngine:           eng,

@@ -19,3 +19,10 @@ const (
 	// MaxConcurrentParts 最大并发上传分片数
 	MaxConcurrentParts = 3
 )
+
+// RabbitMq 配置
+var ExchangeName = "upload.event.exchange"
+
+var QueueName = "upload.process.queue"
+
+var RoutingKey = "upload.new"

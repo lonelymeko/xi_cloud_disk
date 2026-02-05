@@ -4,14 +4,14 @@
 package logic
 
 import (
-	"context"
-	"errors"
-
+	"cloud_disk/core/common"
 	"cloud_disk/core/internal/svc"
 	"cloud_disk/core/internal/types"
-	"cloud_disk/core/models"
-	"cloud_disk/core/utils"
+	"context"
+	"encoding/json"
+	"errors"
 
+	"github.com/rabbitmq/amqp091-go"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -29,42 +29,27 @@ func NewUploadFileLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Upload
 	}
 }
 
-func (l *UploadFileLogic) UploadFile(req *types.UploadFileRequest, isExisted bool, repositoryIdentity string) (resp *types.UploadFileResponse, err error) {
+func (l *UploadFileLogic) UploadFile(req *types.UploadFileRequest, isExisted bool, repositoryIdentity string, localFilePath string, hash string) (resp *types.UploadFileResponse, err error) {
 	userIdentity, ok := l.ctx.Value("user_identity").(string)
 	if !ok {
 		return nil, errors.New("用户身份验证失败")
 	}
-	ur := new(models.UserRepository)
-	// 特判：文件存在且上传的文件在当前父目录下已存在且用户 id 一致
-	if isExisted {
-		had, err := l.svcCtx.DBEngine.Table("user_repository").Where("repository_identity=? AND Identity", repositoryIdentity, userIdentity).Get(ur)
-		if err != nil {
-			return nil, err
-		}
-		// 直接返回：文件已存在
-		if had {
-			return &types.UploadFileResponse{
-				Message: "文件已存在",
-			}, nil
-		}
-	} else {
-		// 文件不存在就存入中央数据库
-		rp := &models.RepositoryPool{
-			Name:     req.Name,
-			Hash:     req.Hash,
-			Ext:      req.Ext,
-			Size:     req.Size,
-			Path:     req.Path,
-			Identity: utils.UUID(),
-		}
-		_, err = l.svcCtx.DBEngine.Insert(rp)
-		if err != nil {
-			return nil, err
-		}
+	uploadEvent := &types.UploadEvent{
+		UserIdentity:       userIdentity,
+		ParentId:           req.ParentId,
+		FilePath:           localFilePath,
+		Ext:                req.Ext,
+		Name:               req.Name,
+		Size:               req.Size,
+		IsExisted:          isExisted,
+		RepositoryIdentity: repositoryIdentity,
+		Hash:               hash,
 	}
-	// 最终都要逻辑添加到用户文件表
-	_, err = l.InsertInToUserRepository(userIdentity, req.Ext, req.Name, req.ParentId)
+	body, err := json.Marshal(uploadEvent)
 	if err != nil {
+		return nil, err // 序列化失败直接返回，不用发 MQ
+	}
+	if err := l.PublishUploadEvent(body); err != nil {
 		return nil, err
 	}
 
@@ -73,18 +58,28 @@ func (l *UploadFileLogic) UploadFile(req *types.UploadFileRequest, isExisted boo
 	}, nil
 }
 
-func (l *UploadFileLogic) InsertInToUserRepository(repositoryIdentity, ext, name string, parentId int64) (userRepositoryIdentity string, err error) {
-	ur := &models.UserRepository{
-		Identity:           utils.UUID(),
-		UserIdentity:       l.ctx.Value("user_identity").(string),
-		RepositoryIdentity: repositoryIdentity,
-		ParentId:           parentId,
-		Ext:                ext,
-		Name:               name,
-	}
-	_, err = l.svcCtx.DBEngine.Insert(ur)
+func (l *UploadFileLogic) PublishUploadEvent(body []byte) error {
+	ch, err := l.svcCtx.RabbitMQConn.Channel()
 	if err != nil {
-		return "", err
+		return err
 	}
-	return ur.Identity, nil
+	defer ch.Close()
+
+	err = ch.Publish(
+		common.ExchangeName, // 交换机名
+		common.RoutingKey,   // 路由键（重要！不是队列名）
+		false,               // mandatory
+		false,               // immediate
+		amqp091.Publishing{
+			ContentType:  "application/json",
+			Body:         body,
+			DeliveryMode: amqp091.Persistent, // 持久化消息
+		},
+	)
+	if err != nil {
+		logx.Errorf("发布上传事件失败: %v", err)
+		return err
+	}
+	logx.Infof("已发布上传事件到 MQ: %s", string(body))
+	return nil
 }
