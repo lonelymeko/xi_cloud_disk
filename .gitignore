@@ -41,6 +41,10 @@ Thumbs.db
 node_modules/
 vendor/
 
+# Go test coverage
+coverage.out
+coverage.html
+
 # 临时控制git
 web/
 go.mod

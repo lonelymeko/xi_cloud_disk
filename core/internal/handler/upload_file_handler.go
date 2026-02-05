@@ -45,15 +45,15 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		defer os.Remove(tempFile.Name())
 		defer tempFile.Close()
 
-		if _, err := io.Copy(tempFile, file); err != nil {
-			httpx.ErrorCtx(r.Context(), w, err)
+		if _, copyErr := io.Copy(tempFile, file); copyErr != nil {
+			httpx.ErrorCtx(r.Context(), w, copyErr)
 			return
 		}
 
 		// 从临时文件计算 hash
 		// 将文件指针重置到开头
-		if _, err := tempFile.Seek(0, 0); err != nil {
-			httpx.ErrorCtx(r.Context(), w, err)
+		if _, seekErr := tempFile.Seek(0, 0); seekErr != nil {
+			httpx.ErrorCtx(r.Context(), w, seekErr)
 			return
 		}
 
@@ -63,20 +63,20 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		buf := make([]byte, 4096)
 		for {
 			// 分块读取文件内容到 buf
-			n, err := tempFile.Read(buf)
+			n, readErr := tempFile.Read(buf)
 			if n > 0 {
 				// 将读取到的有效字节更新到 MD5 哈希对象
-				if _, err := h.Write(buf[:n]); err != nil {
-					httpx.ErrorCtx(r.Context(), w, err)
+				if _, writeErr := h.Write(buf[:n]); writeErr != nil {
+					httpx.ErrorCtx(r.Context(), w, writeErr)
 					return
 				}
 			}
-			if err == io.EOF {
+			if readErr == io.EOF {
 				// 读取完毕，退出循环
 				break
 			}
-			if err != nil {
-				httpx.ErrorCtx(r.Context(), w, err)
+			if readErr != nil {
+				httpx.ErrorCtx(r.Context(), w, readErr)
 				return
 			}
 		}
@@ -102,8 +102,8 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 
 		// 文件不存在，进行上传
 		// 将临时文件指针重置到开头以便上传
-		if _, err := tempFile.Seek(0, 0); err != nil {
-			httpx.ErrorCtx(r.Context(), w, err)
+		if _, seekErr := tempFile.Seek(0, 0); seekErr != nil {
+			httpx.ErrorCtx(r.Context(), w, seekErr)
 			return
 		}
 
@@ -126,20 +126,20 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 
 		if videoExts[ext] {
 			// 是视频文件，需要压缩
-			compressedFile, err := os.CreateTemp("", "compressed-*.mp4")
-			if err != nil {
-				httpx.ErrorCtx(r.Context(), w, err)
+			compressedFile, createErr := os.CreateTemp("", "compressed-*.mp4")
+			if createErr != nil {
+				httpx.ErrorCtx(r.Context(), w, createErr)
 				return
 			}
 			compressedFilePath = compressedFile.Name()
 			// 注意：不在这里 defer，避免在秒传时也执行清理
 
 			// 使用 ffmpeg 压缩视频
-			_, err = utils.CompressVideoWithFFmpeg(tempFile.Name(), compressedFile.Name(), 23, "128k")
-			if err != nil {
+			_, compressErr := utils.CompressVideoWithFFmpeg(tempFile.Name(), compressedFile.Name(), 23, "128k")
+			if compressErr != nil {
 				compressedFile.Close()
 				os.Remove(compressedFilePath)
-				httpx.ErrorCtx(r.Context(), w, err)
+				httpx.ErrorCtx(r.Context(), w, compressErr)
 				return
 			}
 
@@ -149,27 +149,27 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			finalUploadPath = compressedFile.Name()
 
 			// 将文件指针重置到开头
-			if _, err := uploadFile.Seek(0, 0); err != nil {
+			if _, seekErr := uploadFile.Seek(0, 0); seekErr != nil {
 				compressedFile.Close()
 				os.Remove(compressedFilePath)
-				httpx.ErrorCtx(r.Context(), w, err)
+				httpx.ErrorCtx(r.Context(), w, seekErr)
 				return
 			}
 
 			// 获取压缩后的文件大小
-			fileInfo, err := uploadFile.Stat()
-			if err != nil {
+			fileInfo, statErr := uploadFile.Stat()
+			if statErr != nil {
 				compressedFile.Close()
 				os.Remove(compressedFilePath)
-				httpx.ErrorCtx(r.Context(), w, err)
+				httpx.ErrorCtx(r.Context(), w, statErr)
 				return
 			}
 			actualSize = fileInfo.Size()
 		} else if imageExts[ext] {
 			// 是图片文件，需要压缩
-			compressedFile, err := os.CreateTemp("", "compressed-*"+ext)
-			if err != nil {
-				httpx.ErrorCtx(r.Context(), w, err)
+			compressedFile, createErr := os.CreateTemp("", "compressed-*"+ext)
+			if createErr != nil {
+				httpx.ErrorCtx(r.Context(), w, createErr)
 				return
 			}
 			compressedFilePath = compressedFile.Name()
@@ -177,22 +177,22 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			compressedFile.Close() // 先关闭，因为 CompressImage 会重新打开
 
 			// 使用图片压缩（最大 1920x1080，质量 85）
-			err = utils.CompressImage(tempFile.Name(), tempCompressedPath, &utils.ImageCompressOptions{
+			compressErr := utils.CompressImage(tempFile.Name(), tempCompressedPath, &utils.ImageCompressOptions{
 				MaxWidth:  1920,
 				MaxHeight: 1080,
 				Quality:   85,
 			})
-			if err != nil {
+			if compressErr != nil {
 				os.Remove(tempCompressedPath)
-				httpx.ErrorCtx(r.Context(), w, err)
+				httpx.ErrorCtx(r.Context(), w, compressErr)
 				return
 			}
 
 			// 重新打开压缩后的文件用于上传
-			compressedFile, err = os.Open(tempCompressedPath)
-			if err != nil {
+			compressedFile, openErr := os.Open(tempCompressedPath)
+			if openErr != nil {
 				os.Remove(tempCompressedPath)
-				httpx.ErrorCtx(r.Context(), w, err)
+				httpx.ErrorCtx(r.Context(), w, openErr)
 				return
 			}
 
@@ -202,11 +202,11 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			finalUploadPath = tempCompressedPath
 
 			// 获取压缩后的文件大小
-			fileInfo, err := uploadFile.Stat()
-			if err != nil {
+			fileInfo, statErr := uploadFile.Stat()
+			if statErr != nil {
 				uploadFile.Close()
 				os.Remove(tempCompressedPath)
-				httpx.ErrorCtx(r.Context(), w, err)
+				httpx.ErrorCtx(r.Context(), w, statErr)
 				return
 			}
 			actualSize = fileInfo.Size()
