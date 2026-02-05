@@ -69,5 +69,103 @@ func TablesHealthy(engine *xorm.Engine) error {
 			}
 		}
 	}
+	if err := ensureColumnTypes(metaMap); err != nil {
+		return err
+	}
+	if err := ensureIndexes(metaMap); err != nil {
+		return err
+	}
 	return nil
+}
+
+func ensureColumnTypes(metaMap map[string]*schemas.Table) error {
+	repo := metaMap[new(models.RepositoryPool).TableName()]
+	if repo == nil {
+		return fmt.Errorf("table %s meta missing", new(models.RepositoryPool).TableName())
+	}
+	if err := checkColumnType(repo, "expire_at", []string{"datetime", "timestamp"}); err != nil {
+		return err
+	}
+	if err := checkColumnType(repo, "status", []string{"varchar", "char", "text"}); err != nil {
+		return err
+	}
+
+	userRepo := metaMap[new(models.UserRepository).TableName()]
+	if userRepo == nil {
+		return fmt.Errorf("table %s meta missing", new(models.UserRepository).TableName())
+	}
+	if err := checkColumnType(userRepo, "expire_at", []string{"datetime", "timestamp"}); err != nil {
+		return err
+	}
+	if err := checkColumnType(userRepo, "status", []string{"varchar", "char", "text"}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func ensureIndexes(metaMap map[string]*schemas.Table) error {
+	userRepo := metaMap[new(models.UserRepository).TableName()]
+	if userRepo == nil {
+		return fmt.Errorf("table %s meta missing", new(models.UserRepository).TableName())
+	}
+	if !indexHasColumns(userRepo, []string{"user_identity", "parent_id", "status"}) {
+		return fmt.Errorf("table %s missing index on user_identity,parent_id,status", userRepo.Name)
+	}
+
+	repo := metaMap[new(models.RepositoryPool).TableName()]
+	if repo == nil {
+		return fmt.Errorf("table %s meta missing", new(models.RepositoryPool).TableName())
+	}
+	if !indexHasColumns(repo, []string{"hash", "status"}) {
+		return fmt.Errorf("table %s missing index on hash,status", repo.Name)
+	}
+	return nil
+}
+
+func checkColumnType(table *schemas.Table, column string, allowed []string) error {
+	col := table.GetColumn(column)
+	if col == nil {
+		return fmt.Errorf("table %s missing column %s", table.Name, column)
+	}
+	colType := col.SQLType.Name
+	for _, allow := range allowed {
+		if colType == allow {
+			return nil
+		}
+	}
+	return fmt.Errorf("table %s column %s type %s not allowed", table.Name, column, colType)
+}
+
+func indexHasColumns(table *schemas.Table, cols []string) bool {
+	if table == nil || len(table.Indexes) == 0 {
+		return false
+	}
+	for _, idx := range table.Indexes {
+		if equalColumns(idx.Cols, cols) {
+			return true
+		}
+	}
+	return false
+}
+
+func equalColumns(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	set := map[string]int{}
+	for _, v := range left {
+		set[v]++
+	}
+	for _, v := range right {
+		if set[v] == 0 {
+			return false
+		}
+		set[v]--
+	}
+	for _, v := range set {
+		if v != 0 {
+			return false
+		}
+	}
+	return true
 }
