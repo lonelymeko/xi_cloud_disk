@@ -43,9 +43,9 @@ func (l *SendVerificationCodeLogic) SendVerificationCode(req *types.SendVerifica
 		logx.Infof("邮箱发送已禁用，验证码: %s", code)
 	} else {
 		go func() {
-			err := utils.SendEmail(req.Email, code)
-			if err != nil {
-				logx.Errorf("发送验证码邮件失败: %v", err)
+			sendErr := utils.SendEmail(req.Email, code)
+			if sendErr != nil {
+				logx.Errorf("发送验证码邮件失败: %v", sendErr)
 			}
 		}()
 	}

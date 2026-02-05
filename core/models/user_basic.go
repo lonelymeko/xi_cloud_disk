@@ -6,6 +6,7 @@ type UserBasic struct {
 	Name      string
 	Password  string
 	Email     string
+	Role      string
 	CreatedAt string `xorm:"created"`
 	UpdatedAt string `xorm:"updated"`
 	DeletedAt string `xorm:"deleted"`

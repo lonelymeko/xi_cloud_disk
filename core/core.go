@@ -70,7 +70,28 @@ func main() {
 		}
 	}
 
-	server := rest.MustNewServer(c.RestConf, rest.WithUnauthorizedCallback(JwtUnauthorizedResult))
+	corsEnv := os.Getenv("CORS_ALLOW_ORIGINS")
+	origins := make([]string, 0)
+	if corsEnv != "" {
+		for _, v := range strings.Split(corsEnv, ",") {
+			v = strings.TrimSpace(v)
+			if v != "" {
+				origins = append(origins, v)
+			}
+		}
+	}
+	if len(origins) == 0 {
+		origins = append(origins, "*")
+	}
+
+	server := rest.MustNewServer(
+		c.RestConf,
+		rest.WithUnauthorizedCallback(JwtUnauthorizedResult),
+		rest.WithCustomCors(func(header http.Header) {
+			header.Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Token")
+			header.Set("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,HEAD,OPTIONS")
+		}, nil, origins...),
+	)
 	defer server.Stop()
 
 	ctx := svc.NewServiceContext(c)
@@ -83,12 +104,12 @@ func main() {
 		ok   bool
 		err  error
 	}
-    ch := make(chan res, 4)
+	ch := make(chan res, 4)
 	go func() { err := ctx.DBEngine.Ping(); ch <- res{"database", err == nil, err} }()
 	go func() { err := ctx.RedisClient.Ping(checkCtx).Err(); ch <- res{"redis", err == nil, err} }()
 	go func() { err := utils.EmailConnectivity(checkCtx); ch <- res{"email", err == nil, err} }()
-    go func() { err := utils.OSSConnectivity(checkCtx); ch <- res{"oss", err == nil, err} }()
-    for i := 0; i < 4; i++ {
+	go func() { err := utils.OSSConnectivity(checkCtx); ch <- res{"oss", err == nil, err} }()
+	for i := 0; i < 4; i++ {
 		r := <-ch
 		if r.ok {
 			logx.Infof("startup %s ok", r.name)
