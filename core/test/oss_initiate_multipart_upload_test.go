@@ -109,9 +109,9 @@ func TestInitiateMultipartUpload(t *testing.T) {
 		partData := make([]byte, currentPartSize)
 
 		// 定位到分片起始位置并读取数据
-		_, err = file.Seek(offset, 0)
-		if err != nil {
-			t.Fatalf("文件定位失败: %v", err)
+		_, seekErr := file.Seek(offset, 0)
+		if seekErr != nil {
+			t.Fatalf("文件定位失败: %v", seekErr)
 		}
 
 		n, readErr := io.ReadFull(file, partData)
@@ -124,7 +124,7 @@ func TestInitiateMultipartUpload(t *testing.T) {
 
 		// 上传分片（使用 bytes.NewReader）
 		partStartTime := time.Now()
-		partResult, partErr := client.UploadPart(partCtx, &oss.UploadPartRequest{
+		partResult, uploadErr := client.UploadPart(partCtx, &oss.UploadPartRequest{
 			Bucket:     oss.Ptr(bucket),
 			Key:        oss.Ptr(key),
 			UploadId:   oss.Ptr(uploadId),
@@ -133,8 +133,8 @@ func TestInitiateMultipartUpload(t *testing.T) {
 		})
 		partCancel()
 
-		if partErr != nil {
-			t.Fatalf("上传分片 %d 失败: %v", partNumber, partErr)
+		if uploadErr != nil {
+			t.Fatalf("上传分片 %d 失败: %v", partNumber, uploadErr)
 		}
 
 		partDuration := time.Since(partStartTime)

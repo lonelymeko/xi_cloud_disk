@@ -112,7 +112,7 @@ type UploadFileRequest struct {
 
 // UploadFileResponse 上传文件响应。
 type UploadFileResponse struct {
-	Message string `json:"message,optional"`
+	Message string `json:"message,omitempty"`
 }
 
 // UserDetailRequest 用户详情请求。
