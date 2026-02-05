@@ -92,13 +92,11 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			httpx.ErrorCtx(r.Context(), w, err)
 			return
 		}
+		// 如果文件信息存在：
 		if has {
-			// 文件已存在，秒传成功，返回文件信息
-			httpx.OkJsonCtx(r.Context(), w, &types.UploadFileResponse{
-				Identity: rp.Identity,
-				Name:     rp.Name,
-				Ext:      rp.Ext,
-			})
+			l := logic.NewUploadFileLogic(r.Context(), svcCtx)
+			resp, err := l.UploadFile(&req, has)
+			common.Response(r, w, resp, err)
 			return
 		}
 
@@ -257,7 +255,7 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		req.Hash = hash
 
 		l := logic.NewUploadFileLogic(r.Context(), svcCtx)
-		resp, err := l.UploadFile(&req)
+		resp, err := l.UploadFile(&req, has)
 		common.Response(r, w, resp, err)
 	}
 }
