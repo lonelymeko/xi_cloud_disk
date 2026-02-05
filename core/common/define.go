@@ -1,11 +1,15 @@
 package common
 
+// OSSRegion OSS 默认地域。
 var OSSRegion = "cn-chengdu"
+
+// OSSBucketName OSS 默认存储桶名称。
 var OSSBucketName = "xi-cloud-disk-chengdu"
 
-// 分页的默认参数
+// PageSize 分页默认大小。
 var PageSize = 20
 
+// DataTimeFormat 时间格式化模板。
 var DataTimeFormat = "2006-01-02 15:04:05"
 
 // 分片上传配置
