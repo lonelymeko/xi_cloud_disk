@@ -1,4 +1,4 @@
-// Code scaffolded by goctl. Safe to edit.
+// goctl 生成代码，可安全编辑。
 // goctl 1.9.2
 
 package svc
@@ -18,6 +18,7 @@ import (
 	"xorm.io/xorm"
 )
 
+// ServiceContext 服务上下文。
 type ServiceContext struct {
 	Config             config.Config
 	DBEngine           *xorm.Engine
@@ -27,6 +28,7 @@ type ServiceContext struct {
 	FileAuthMiddleware rest.Middleware
 }
 
+// RedisClient Redis 客户端最小接口。
 type RedisClient interface {
 	Get(ctx context.Context, key string) *redis.StringCmd
 	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd
@@ -35,6 +37,7 @@ type RedisClient interface {
 	Ping(ctx context.Context) *redis.StatusCmd
 }
 
+// serviceDeps 依赖注入集合。
 type serviceDeps struct {
 	initDB             func(string) *xorm.Engine
 	initRedis          func(string, string, int) RedisClient
@@ -45,6 +48,7 @@ type serviceDeps struct {
 	initRabbitMQ       func(string, int, string, string, string) (*amqp091.Connection, *amqp091.Channel)
 }
 
+// deps 默认依赖实现。
 var deps = serviceDeps{
 	initDB:       global.Init,
 	initRedis:    func(addr, password string, db int) RedisClient { return global.InitRedis(addr, password, db) },
@@ -57,6 +61,7 @@ var deps = serviceDeps{
 	ensureDefaultAdmin: utils.EnsureDefaultAdmin,
 }
 
+// NewServiceContext 创建服务上下文。
 func NewServiceContext(c config.Config) *ServiceContext {
 	eng := deps.initDB(c.MySQL.DataSource)
 	_ = deps.ensureSchema(eng)
@@ -82,6 +87,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 }
 
+// NewServiceContextWithDeps 使用自定义依赖创建服务上下文。
 func NewServiceContextWithDeps(c config.Config, db *xorm.Engine, redis RedisClient, fileAuth rest.Middleware) *ServiceContext {
 	return &ServiceContext{
 		Config:             c,

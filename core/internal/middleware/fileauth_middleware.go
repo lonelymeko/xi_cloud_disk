@@ -11,13 +11,14 @@ import (
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
 
-// FileAuthMiddleware 文件上传专用的认证中间件
-// 只从 Header 和 Query 参数中获取 token，不读取 form 表单
+// FileAuthMiddleware 文件上传专用的认证中间件。
+// 只从 Header 和 Query 参数中获取 token，不读取表单。
 type FileAuthMiddleware struct {
 	accessSecret string
 	accessExpire int64
 }
 
+// NewFileAuthMiddleware 创建文件上传认证中间件。
 func NewFileAuthMiddleware(accessSecret string, accessExpire int64) *FileAuthMiddleware {
 	return &FileAuthMiddleware{
 		accessSecret: accessSecret,
@@ -25,6 +26,7 @@ func NewFileAuthMiddleware(accessSecret string, accessExpire int64) *FileAuthMid
 	}
 }
 
+// Handle 实现认证处理。
 func (m *FileAuthMiddleware) Handle(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// 1. 优先从 Authorization Header 获取 token

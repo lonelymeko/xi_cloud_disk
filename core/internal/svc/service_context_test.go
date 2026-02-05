@@ -14,6 +14,7 @@ import (
 	"xorm.io/xorm"
 )
 
+// TestNewServiceContextWithDeps 验证使用自定义依赖构建上下文。
 func TestNewServiceContextWithDeps(t *testing.T) {
 	cfg := config.Config{}
 	ctx := NewServiceContextWithDeps(cfg, nil, nil, func(next http.HandlerFunc) http.HandlerFunc {
@@ -27,6 +28,7 @@ func TestNewServiceContextWithDeps(t *testing.T) {
 	}
 }
 
+// TestNewServiceContextUsesDeps 验证默认依赖被正确调用。
 func TestNewServiceContextUsesDeps(t *testing.T) {
 	oldDeps := deps
 	t.Cleanup(func() { deps = oldDeps })
@@ -122,6 +124,7 @@ func TestNewServiceContextUsesDeps(t *testing.T) {
 	}
 }
 
+// fakeRedisClient Redis 客户端测试替身。
 type fakeRedisClient struct{}
 
 func (f *fakeRedisClient) Get(ctx context.Context, key string) *redis.StringCmd {

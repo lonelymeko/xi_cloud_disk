@@ -15,6 +15,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// TestInitiateMultipartUpload 验证分片上传流程。
 func TestInitiateMultipartUpload(t *testing.T) {
 	// 设置更长的测试超时时间（5分钟）
 	if testing.Short() {

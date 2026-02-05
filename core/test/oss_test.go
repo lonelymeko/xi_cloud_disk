@@ -20,6 +20,7 @@ import (
 	"github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss/credentials"
 )
 
+// TestUploadToOSS 验证上传函数调用链。
 func TestUploadToOSS(t *testing.T) {
 	oldLoad := utils.OSSLoadEnv()
 	oldKeyGen := utils.OSSKeyGen()
@@ -67,6 +68,7 @@ func TestUploadToOSS(t *testing.T) {
 	}
 }
 
+// TestUploadToOSS_ErrorWrap 验证错误包装行为。
 func TestUploadToOSS_ErrorWrap(t *testing.T) {
 	oldLoad := utils.OSSLoadEnv()
 	oldKeyGen := utils.OSSKeyGen()
@@ -94,6 +96,7 @@ func TestUploadToOSS_ErrorWrap(t *testing.T) {
 	}
 }
 
+// TestOSSHost 验证 OSS 域名拼接逻辑。
 func TestOSSHost(t *testing.T) {
 	oldBucket := common.OSSBucketName
 	oldRegion := common.OSSRegion
@@ -141,6 +144,7 @@ func TestOSSHost(t *testing.T) {
 	}
 }
 
+// TestOSSConnectivity 验证连通性检查成功场景。
 func TestOSSConnectivity(t *testing.T) {
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -161,6 +165,7 @@ func TestOSSConnectivity(t *testing.T) {
 	}
 }
 
+// TestOSSConnectivity_Failure 验证连通性检查失败场景。
 func TestOSSConnectivity_Failure(t *testing.T) {
 	setEnv(t, "OSS_HOST", "127.0.0.1:1")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -170,6 +175,7 @@ func TestOSSConnectivity_Failure(t *testing.T) {
 	}
 }
 
+// TestOSSConnectivity_Timeout 验证连通性检查超时场景。
 func TestOSSConnectivity_Timeout(t *testing.T) {
 	setEnv(t, "OSS_HOST", "10.255.255.1:81")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond)
@@ -180,6 +186,7 @@ func TestOSSConnectivity_Timeout(t *testing.T) {
 	}
 }
 
+// TestOSSUploadDownloadDelete_Integration 验证 OSS 上传下载删除流程。
 func TestOSSUploadDownloadDelete_Integration(t *testing.T) {
 	accessKey := os.Getenv("OSS_ACCESS_KEY_ID")
 	accessSecret := os.Getenv("OSS_ACCESS_KEY_SECRET")
@@ -259,6 +266,7 @@ func TestOSSUploadDownloadDelete_Integration(t *testing.T) {
 	}
 }
 
+// setEnv 设置环境变量并在测试结束时恢复。
 func setEnv(t *testing.T, key, value string) {
 	old, ok := os.LookupEnv(key)
 	if value == "" {
@@ -275,6 +283,7 @@ func setEnv(t *testing.T, key, value string) {
 	})
 }
 
+// testFilePath 获取测试文件路径。
 func testFilePath(t *testing.T) (string, string) {
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {

@@ -12,6 +12,7 @@ import (
 	"xorm.io/xorm"
 )
 
+// TestXorm 验证 Xorm 基础操作与表结构同步。
 func TestXorm(t *testing.T) {
 	engine, err := xorm.NewEngine("sqlite", ":memory:")
 	if err != nil {
