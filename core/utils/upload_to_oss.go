@@ -9,7 +9,6 @@ import (
 
 	"github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss"
 	"github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss/credentials"
-	"github.com/joho/godotenv"
 )
 
 // UploadToOSS 上传文件到 OSS，接受 io.Reader 和原始文件名
@@ -21,10 +20,6 @@ func UploadToOSS(fileReader io.Reader, originalFilename string) (string, error) 
 		bucketName = common.OSSBucketName
 		objectName = key
 	)
-	err := godotenv.Load(".env")
-	if err != nil {
-		panic(err)
-	}
 	// Using the SDK's default configuration
 	// loading credentials values from the environment variables
 	cfg := oss.LoadDefaultConfig().

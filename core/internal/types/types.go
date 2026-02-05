@@ -73,6 +73,9 @@ type UploadFileRequest struct {
 }
 
 type UploadFileResponse struct {
+	Identity string `json:"identity"`
+	Name     string `json:"name"`
+	Ext      string `json:"ext"`
 }
 
 type UserDetailRequest struct {

@@ -18,6 +18,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
 
@@ -123,6 +124,7 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		var uploadFilename string
 		var compressedFilePath string // 用于记录压缩文件路径，以便清理
 		var actualSize int64          // 实际上传的文件大小
+		var finalUploadPath string    // 最终要上传的文件路径（用于分片上传）
 
 		if videoExts[ext] {
 			// 是视频文件，需要压缩
@@ -146,6 +148,7 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			// 使用压缩后的文件上传
 			uploadFile = compressedFile
 			uploadFilename = fileHeader.Filename
+			finalUploadPath = compressedFile.Name()
 
 			// 将文件指针重置到开头
 			if _, err := uploadFile.Seek(0, 0); err != nil {
@@ -198,6 +201,7 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			// 使用压缩后的文件上传
 			uploadFile = compressedFile
 			uploadFilename = fileHeader.Filename
+			finalUploadPath = tempCompressedPath
 
 			// 获取压缩后的文件大小
 			fileInfo, err := uploadFile.Stat()
@@ -212,11 +216,27 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			// 非视频和图片文件，直接使用临时文件
 			uploadFile = tempFile
 			uploadFilename = fileHeader.Filename
+			finalUploadPath = tempFile.Name()
 			actualSize = fileHeader.Size // 使用原始文件大小
 		}
 
-		// 上传到 OSS
-		OssPath, err := utils.UploadToOSS(uploadFile, uploadFilename)
+		// 根据文件大小选择上传方式
+		var OssPath string
+		if actualSize > common.MultipartUploadThreshold {
+			// 大文件：使用分片上传
+			logx.Infof("文件大小 %.2f MB 超过阈值，使用分片上传",
+				float64(actualSize)/(1024*1024))
+
+			// 关闭文件句柄（分片上传会重新打开）
+			if uploadFile != tempFile {
+				uploadFile.Close()
+			}
+
+			OssPath, err = utils.UploadToOSSMultipart(finalUploadPath, uploadFilename, actualSize)
+		} else {
+			// 小文件：使用普通上传
+			OssPath, err = utils.UploadToOSS(uploadFile, uploadFilename)
+		}
 
 		// 上传完成后，立即清理压缩文件
 		if compressedFilePath != "" {

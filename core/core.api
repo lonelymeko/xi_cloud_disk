@@ -116,7 +116,11 @@ type UploadFileRequest {
 	ParentId int64  `json:"parent_id,optional"`
 }
 
-type UploadFileResponse {}
+type UploadFileResponse {
+	Identity string `json:"identity"`
+	Name     string `json:"name"`
+	Ext      string `json:"ext"`
+}
 
 type UserFileListRequest {
 	id   int64 `json:"id,optional"`
