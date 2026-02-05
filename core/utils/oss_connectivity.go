@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -14,15 +15,34 @@ func OSSHost() string {
 	if v := os.Getenv("OSS_HOST"); v != "" {
 		return v
 	}
-	bucket := os.Getenv("OSS_BUCKET_NAME")
-	region := os.Getenv("OSS_REGION")
-	if bucket == "" {
-		bucket = common.OSSBucketName
-	}
-	if region == "" {
-		region = common.OSSRegion
+	bucket := OSSBucketNameValue()
+	region := OSSRegionValue()
+	if region != "" && !strings.HasPrefix(region, "oss-") {
+		region = "oss-" + region
 	}
 	return fmt.Sprintf("%s.%s.aliyuncs.com:443", bucket, region)
+}
+
+func OSSRegionValue() string {
+	if v := os.Getenv("OSS_REGION"); v != "" {
+		return normalizeOSSRegion(v)
+	}
+	return normalizeOSSRegion(common.OSSRegion)
+}
+
+func normalizeOSSRegion(region string) string {
+	r := strings.TrimSpace(region)
+	for strings.HasPrefix(r, "oss-") {
+		r = strings.TrimPrefix(r, "oss-")
+	}
+	return r
+}
+
+func OSSBucketNameValue() string {
+	if v := os.Getenv("OSS_BUCKET_NAME"); v != "" {
+		return v
+	}
+	return common.OSSBucketName
 }
 
 // OSSConnectivity 检查 OSS 网络连通性。

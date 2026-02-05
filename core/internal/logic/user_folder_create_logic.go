@@ -59,6 +59,12 @@ func (l *UserFolderCreateLogic) UserFolderCreate(req *types.UserFolderCreateRequ
 	if err != nil {
 		return nil, err
 	}
+	if data.Id == 0 {
+		_, err = l.svcCtx.DBEngine.Table("user_repository").Where("identity = ?", data.Identity).Get(data)
+		if err != nil {
+			return nil, err
+		}
+	}
 
-	return &types.UserFolderCreateResponse{}, nil
+	return &types.UserFolderCreateResponse{Id: int64(data.Id), Identity: data.Identity}, nil
 }

@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"cloud_disk/core/common"
 	"context"
 	"fmt"
 	"io"
@@ -69,8 +68,8 @@ func UploadToOSS(fileReader io.Reader, originalFilename string) (string, error) 
 	key := ossKeyGen(originalFilename)
 
 	var (
-		region     = common.OSSRegion
-		bucketName = common.OSSBucketName
+		region     = OSSRegionValue()
+		bucketName = OSSBucketNameValue()
 		objectName = key
 	)
 	if err := ossLoadEnv(); err != nil {

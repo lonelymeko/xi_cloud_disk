@@ -1,10 +1,12 @@
 package common
 
+import "os"
+
 // OSSRegion OSS 默认地域。
-var OSSRegion = "cn-chengdu"
+var OSSRegion = os.Getenv("OSS_REGION")
 
 // OSSBucketName OSS 默认存储桶名称。
-var OSSBucketName = "xi-cloud-disk-chengdu"
+var OSSBucketName = os.Getenv("OSS_BUCKET_NAME")
 
 // PageSize 分页默认大小。
 var PageSize = 20

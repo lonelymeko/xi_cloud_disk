@@ -94,6 +94,11 @@ EMAIL_HOST=smtp.qq.com
 EMAIL_PORT=587
 EMAIL_USER=your_email@qq.com
 EMAIL_PASSWORD=your_auth_code
+# 是否启用邮箱验证码功能（生产环境不介意禁用，此项默认为true）
+EMAIL_ENABLED=true
+
+# 跨域配置
+CORS_ALLOW_ORIGINS=http://localhost:5174,http://172.26.175.210:5174
 ```
 
 ### 4. 数据库初始化

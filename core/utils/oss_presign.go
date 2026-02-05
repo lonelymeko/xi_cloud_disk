@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"cloud_disk/core/common"
 	"context"
 	"time"
 
@@ -10,12 +9,15 @@ import (
 
 // PresignGetObject 生成获取对象的临时签名 URL。
 func PresignGetObject(ctx context.Context, objectKey string, expires time.Duration) (string, error) {
-	client, err := newOSSClient(common.OSSRegion)
+	if err := ossLoadEnv(); err != nil {
+		return "", err
+	}
+	client, err := newOSSClient(OSSRegionValue())
 	if err != nil {
 		return "", err
 	}
 	result, err := client.Presign(ctx, &oss.GetObjectRequest{
-		Bucket: oss.Ptr(common.OSSBucketName),
+		Bucket: oss.Ptr(OSSBucketNameValue()),
 		Key:    oss.Ptr(objectKey),
 	}, oss.PresignExpires(expires))
 	if err != nil {

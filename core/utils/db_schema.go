@@ -25,6 +25,9 @@ func EnsureSchema(engine *xorm.Engine) error {
 	if err := engine.Sync2(new(models.FileEventLog)); err != nil {
 		return fmt.Errorf("sync file_event_log: %w", err)
 	}
+	if err := ensureAutoIncrement(engine); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -78,6 +81,58 @@ func TablesHealthy(engine *xorm.Engine) error {
 		return err
 	}
 	return nil
+}
+
+func ensureAutoIncrement(engine *xorm.Engine) error {
+	metas, err := engine.DBMetas()
+	if err != nil {
+		return err
+	}
+	metaMap := map[string]*schemas.Table{}
+	for _, m := range metas {
+		metaMap[m.Name] = m
+	}
+	return ensureTableAutoIncrement(engine, metaMap, new(models.UserRepository).TableName(), "id")
+}
+
+func ensureTableAutoIncrement(engine *xorm.Engine, metaMap map[string]*schemas.Table, tableName, column string) error {
+	meta := metaMap[tableName]
+	if meta == nil {
+		return fmt.Errorf("table %s meta missing", tableName)
+	}
+	col := meta.GetColumn(column)
+	if col == nil {
+		return fmt.Errorf("table %s missing column %s", tableName, column)
+	}
+	if col.IsAutoIncrement && hasPrimaryKey(meta, column) {
+		return nil
+	}
+	if engine.Dialect().URI().DBType != schemas.MYSQL {
+		return fmt.Errorf("table %s column %s autoincrement missing", tableName, column)
+	}
+	_, err := engine.Exec(fmt.Sprintf("ALTER TABLE %s MODIFY COLUMN %s BIGINT NOT NULL AUTO_INCREMENT", tableName, column))
+	if err != nil {
+		return fmt.Errorf("table %s modify autoincrement failed: %w", tableName, err)
+	}
+	if !hasPrimaryKey(meta, column) {
+		_, err = engine.Exec(fmt.Sprintf("ALTER TABLE %s ADD PRIMARY KEY (%s)", tableName, column))
+		if err != nil {
+			return fmt.Errorf("table %s add primary key failed: %w", tableName, err)
+		}
+	}
+	return nil
+}
+
+func hasPrimaryKey(table *schemas.Table, column string) bool {
+	if table == nil || len(table.PrimaryKeys) == 0 {
+		return false
+	}
+	for _, key := range table.PrimaryKeys {
+		if key == column {
+			return true
+		}
+	}
+	return false
 }
 
 // ensureColumnTypes 校验关键字段类型。
