@@ -2,7 +2,7 @@ package models
 
 // UserRepository 对应 user_repository 表（用户文件关联表）。
 type UserRepository struct {
-	Id                 int
+	Id                 int64 `xorm:"pk autoincr"`
 	Identity           string
 	UserIdentity       string
 	ParentId           int64

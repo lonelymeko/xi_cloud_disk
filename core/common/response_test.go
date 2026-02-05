@@ -44,7 +44,7 @@ func TestResponseError(t *testing.T) {
 
 // TestDefaults 验证默认配置有效性。
 func TestDefaults(t *testing.T) {
-	if OSSRegion == "" || OSSBucketName == "" || PageSize == 0 || DataTimeFormat == "" {
+	if PageSize == 0 || DataTimeFormat == "" {
 		t.Fatal("defaults invalid")
 	}
 }

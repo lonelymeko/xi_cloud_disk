@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -78,6 +79,36 @@ func TestRandomPassword(t *testing.T) {
 		if !strings.ContainsRune(allowed, r) {
 			t.Fatalf("invalid char: %q", r)
 		}
+	}
+}
+
+func TestOSSRegionValueNormalization(t *testing.T) {
+	old, had := os.LookupEnv("OSS_REGION")
+	t.Cleanup(func() {
+		if had {
+			_ = os.Setenv("OSS_REGION", old)
+			return
+		}
+		_ = os.Unsetenv("OSS_REGION")
+	})
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{name: "plain", input: "cn-hangzhou", want: "cn-hangzhou"},
+		{name: "prefixed", input: "oss-cn-hangzhou", want: "cn-hangzhou"},
+		{name: "double-prefixed", input: "oss-oss-cn-hangzhou", want: "cn-hangzhou"},
+		{name: "spaces", input: "  oss-cn-beijing  ", want: "cn-beijing"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_ = os.Setenv("OSS_REGION", c.input)
+			got := OSSRegionValue()
+			if got != c.want {
+				t.Fatalf("normalize mismatch: got %s want %s", got, c.want)
+			}
+		})
 	}
 }
 

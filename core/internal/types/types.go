@@ -101,13 +101,13 @@ type SendVerificationCodeResponse struct {
 
 // UploadFileRequest 上传文件请求。
 type UploadFileRequest struct {
-	Hash      string `json:"hash,optional"`
-	Name      string `json:"name,optional"`
-	Ext       string `json:"ext,optional"`
-	Size      int64  `json:"size,optional"`
-	Path      string `json:"path,optional"`
-	ObjectKey string `json:"object_key,optional"`
-	ParentId  int64  `json:"parent_id,optional"`
+	Hash      string `json:"hash,optional" form:"hash,optional"`
+	Name      string `json:"name,optional" form:"name,optional"`
+	Ext       string `json:"ext,optional" form:"ext,optional"`
+	Size      int64  `json:"size,optional" form:"size,optional"`
+	Path      string `json:"path,optional" form:"path,optional"`
+	ObjectKey string `json:"object_key,optional" form:"object_key,optional"`
+	ParentId  int64  `json:"parent_id,optional" form:"parent_id,optional"`
 }
 
 // UploadFileResponse 上传文件响应。
@@ -178,6 +178,7 @@ type UserFolderCreateRequest struct {
 
 // UserFolderCreateResponse 用户文件夹创建响应。
 type UserFolderCreateResponse struct {
+	Id       int64  `json:"id"`
 	Identity string `json:"identity"`
 }
 

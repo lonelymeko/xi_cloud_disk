@@ -30,12 +30,15 @@ func TestUploadToOSS(t *testing.T) {
 
 	common.OSSRegion = "r1"
 	common.OSSBucketName = "b1"
+	setEnv(t, "OSS_REGION", "r1")
+	setEnv(t, "OSS_BUCKET_NAME", "b1")
 	utils.SetOSSLoadEnv(func() error { return nil })
 	utils.SetOSSKeyGen(func(originalFilename string) string { return "k.txt" })
 	called := false
+	expectedRegion := utils.OSSRegionValue()
 	utils.SetOSSUpload(func(region, bucket, key string, body io.Reader) (string, error) {
 		called = true
-		if region != common.OSSRegion || bucket != common.OSSBucketName || key != "k.txt" {
+		if region != expectedRegion || bucket != common.OSSBucketName || key != "k.txt" {
 			return "", io.EOF
 		}
 		data, err := io.ReadAll(body)
@@ -73,6 +76,8 @@ func TestUploadToOSS_ErrorWrap(t *testing.T) {
 	oldLoad := utils.OSSLoadEnv()
 	oldKeyGen := utils.OSSKeyGen()
 	oldUpload := utils.OSSUpload()
+	setEnv(t, "OSS_REGION", "r1")
+	setEnv(t, "OSS_BUCKET_NAME", "b1")
 
 	utils.SetOSSLoadEnv(func() error { return nil })
 	utils.SetOSSKeyGen(func(originalFilename string) string { return "k.txt" })
@@ -124,11 +129,17 @@ func TestOSSHost(t *testing.T) {
 			name:   "bucket region env",
 			bucket: "b",
 			region: "r",
-			expect: "b.r.aliyuncs.com:443",
+			expect: "b.oss-r.aliyuncs.com:443",
+		},
+		{
+			name:   "bucket region env normalize",
+			bucket: "b",
+			region: "oss-cn-hangzhou",
+			expect: "b.oss-cn-hangzhou.aliyuncs.com:443",
 		},
 		{
 			name:   "default common",
-			expect: fmt.Sprintf("%s.%s.aliyuncs.com:443", common.OSSBucketName, common.OSSRegion),
+			expect: fmt.Sprintf("%s.oss-%s.aliyuncs.com:443", common.OSSBucketName, common.OSSRegion),
 		},
 	}
 
@@ -190,10 +201,15 @@ func TestOSSConnectivity_Timeout(t *testing.T) {
 func TestOSSUploadDownloadDelete_Integration(t *testing.T) {
 	accessKey := os.Getenv("OSS_ACCESS_KEY_ID")
 	accessSecret := os.Getenv("OSS_ACCESS_KEY_SECRET")
-	region := os.Getenv("OSS_REGION")
-	bucket := os.Getenv("OSS_BUCKET_NAME")
+	region := utils.OSSRegionValue()
+	bucket := utils.OSSBucketNameValue()
 	if accessKey == "" || accessSecret == "" || region == "" || bucket == "" {
 		t.Skip("oss env not set")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := utils.OSSConnectivity(ctx); err != nil {
+		t.Skipf("oss not reachable: %v", err)
 	}
 
 	oldRegion := common.OSSRegion

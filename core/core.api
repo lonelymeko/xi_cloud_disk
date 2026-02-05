@@ -179,6 +179,7 @@ type UserFolderCreateRequest {
 }
 
 type UserFolderCreateResponse {
+	Id       int64  `json:"id"`
 	Identity string `json:"identity"`
 }
 

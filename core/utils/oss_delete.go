@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"cloud_disk/core/common"
 	"context"
 
 	"github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss"
@@ -9,12 +8,15 @@ import (
 
 // DeleteOSSObject 删除 OSS 对象。
 func DeleteOSSObject(ctx context.Context, objectKey string) error {
-	client, err := newOSSClient(common.OSSRegion)
+	if err := ossLoadEnv(); err != nil {
+		return err
+	}
+	client, err := newOSSClient(OSSRegionValue())
 	if err != nil {
 		return err
 	}
 	_, err = client.DeleteObject(ctx, &oss.DeleteObjectRequest{
-		Bucket: oss.Ptr(common.OSSBucketName),
+		Bucket: oss.Ptr(OSSBucketNameValue()),
 		Key:    oss.Ptr(objectKey),
 	})
 	return err

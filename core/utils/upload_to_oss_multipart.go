@@ -22,9 +22,12 @@ import (
 func UploadToOSSMultipart(filePath string, originalFilename string, fileSize int64) (string, error) {
 	key := UUID() + path.Ext(originalFilename)
 
+	if err := ossLoadEnv(); err != nil {
+		return "", err
+	}
 	var (
-		region     = common.OSSRegion
-		bucketName = common.OSSBucketName
+		region     = OSSRegionValue()
+		bucketName = OSSBucketNameValue()
 		objectName = key
 	)
 
