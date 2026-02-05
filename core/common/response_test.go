@@ -8,6 +8,7 @@ import (
 	"testing"
 )
 
+// TestResponseOK 验证成功响应格式。
 func TestResponseOK(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -24,6 +25,7 @@ func TestResponseOK(t *testing.T) {
 	}
 }
 
+// TestResponseError 验证错误响应格式。
 func TestResponseError(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -40,6 +42,7 @@ func TestResponseError(t *testing.T) {
 	}
 }
 
+// TestDefaults 验证默认配置有效性。
 func TestDefaults(t *testing.T) {
 	if OSSRegion == "" || OSSBucketName == "" || PageSize == 0 || DataTimeFormat == "" {
 		t.Fatal("defaults invalid")
