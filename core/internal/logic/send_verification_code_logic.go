@@ -39,13 +39,16 @@ func (l *SendVerificationCodeLogic) SendVerificationCode(req *types.SendVerifica
 	}
 	code := fmt.Sprintf("%06d", n.Int64())
 
-	// 异步发送邮件
-	go func() {
-		err := utils.SendEmail(req.Email, code)
-		if err != nil {
-			logx.Errorf("发送验证码邮件失败: %v", err)
-		}
-	}()
+	if !utils.EmailEnabled() {
+		logx.Infof("邮箱发送已禁用，验证码: %s", code)
+	} else {
+		go func() {
+			err := utils.SendEmail(req.Email, code)
+			if err != nil {
+				logx.Errorf("发送验证码邮件失败: %v", err)
+			}
+		}()
+	}
 	// 向 Redis 中存储验证码
 	err = l.svcCtx.RedisClient.Set(l.ctx, fmt.Sprintf("verification_code:%s", req.Email), code, 5*time.Minute).Err()
 	if err != nil {
