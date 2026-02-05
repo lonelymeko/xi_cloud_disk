@@ -11,6 +11,7 @@ import (
 	"github.com/jordan-wright/email"
 )
 
+// TestSendEmail 验证发送邮件流程。
 func TestSendEmail(t *testing.T) {
 	oldEnabled, oldHost, oldPort, oldUser, oldPass := utils.EmailEnabled(), utils.EmailHost(), utils.EmailPort(), utils.EmailUser(), utils.EmailPassword()
 	oldSender := utils.EmailSender()
@@ -38,6 +39,7 @@ func TestSendEmail(t *testing.T) {
 	}
 }
 
+// TestEmailConnectivity 验证邮件服务连通性检查。
 func TestEmailConnectivity(t *testing.T) {
 	oldEnabled, oldHost, oldPort, oldUser, oldPass := utils.EmailEnabled(), utils.EmailHost(), utils.EmailPort(), utils.EmailUser(), utils.EmailPassword()
 	oldDialer := utils.EmailDialer()

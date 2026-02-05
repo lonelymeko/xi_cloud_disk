@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// TestFileAuthMiddlewareMissingToken 验证缺失 token 的处理。
 func TestFileAuthMiddlewareMissingToken(t *testing.T) {
 	m := NewFileAuthMiddleware("s", 3600)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -19,6 +20,7 @@ func TestFileAuthMiddlewareMissingToken(t *testing.T) {
 	}
 }
 
+// TestFileAuthMiddlewareInvalidToken 验证无效 token 的处理。
 func TestFileAuthMiddlewareInvalidToken(t *testing.T) {
 	m := NewFileAuthMiddleware("s", 3600)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -32,6 +34,7 @@ func TestFileAuthMiddlewareInvalidToken(t *testing.T) {
 	}
 }
 
+// TestFileAuthMiddlewareAuthorizationOK 验证 Authorization 头部 token。
 func TestFileAuthMiddlewareAuthorizationOK(t *testing.T) {
 	secret := "secret"
 	expire := int64(3600)
@@ -60,6 +63,7 @@ func TestFileAuthMiddlewareAuthorizationOK(t *testing.T) {
 	}
 }
 
+// TestFileAuthMiddlewareXTokenOK 验证 X-Token 头部 token。
 func TestFileAuthMiddlewareXTokenOK(t *testing.T) {
 	secret := "secret"
 	expire := int64(3600)
@@ -85,6 +89,7 @@ func TestFileAuthMiddlewareXTokenOK(t *testing.T) {
 	}
 }
 
+// TestFileAuthMiddlewareQueryTokenOK 验证查询参数 token。
 func TestFileAuthMiddlewareQueryTokenOK(t *testing.T) {
 	secret := "secret"
 	expire := int64(3600)

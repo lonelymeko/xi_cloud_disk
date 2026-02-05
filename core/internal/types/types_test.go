@@ -2,6 +2,7 @@ package types
 
 import "testing"
 
+// TestHelperBuilders 验证请求构建辅助函数。
 func TestHelperBuilders(t *testing.T) {
 	listReq := NewUserFileListRequest(1, 2, 3)
 	if listReq.Id != 1 || listReq.Page != 2 || listReq.Size != 3 {
