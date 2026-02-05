@@ -9,6 +9,9 @@ type RepositoryPool struct {
 	Ext       string
 	Size      int64
 	Path      string
+	ObjectKey string
+	Status    string
+	ExpireAt  string
 	CreatedAt string `xorm:"created"`
 	UpdatedAt string `xorm:"updated"`
 	DeletedAt string `xorm:"deleted"`

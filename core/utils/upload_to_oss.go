@@ -8,17 +8,16 @@ import (
 	"path"
 
 	"github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss"
-	"github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss/credentials"
 	"github.com/joho/godotenv"
 )
 
 var ossLoadEnv = func() error { return godotenv.Load(".env") }
 var ossKeyGen = func(originalFilename string) string { return UUID() + path.Ext(originalFilename) }
 var ossUpload = func(region, bucket, key string, body io.Reader) (string, error) {
-	cfg := oss.LoadDefaultConfig().
-		WithCredentialsProvider(credentials.NewEnvironmentVariableCredentialsProvider()).
-		WithRegion(region)
-	client := oss.NewClient(cfg)
+	client, err := newOSSClient(region)
+	if err != nil {
+		return "", err
+	}
 	result, err := client.PutObject(context.TODO(), &oss.PutObjectRequest{
 		Bucket: oss.Ptr(bucket),
 		Key:    oss.Ptr(key),
@@ -72,5 +71,5 @@ func UploadToOSS(fileReader io.Reader, originalFilename string) (string, error) 
 	}
 
 	fmt.Printf("put object sucessfully, ETag :%v\n", etag)
-	return fmt.Sprintf("https://%s.oss-%s.aliyuncs.com/%s", bucketName, region, objectName), nil
+	return objectName, nil
 }

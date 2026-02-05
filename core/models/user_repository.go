@@ -9,6 +9,8 @@ type UserRepository struct {
 	RepositoryIdentity string
 	Ext                string
 	Name               string
+	Status             string
+	ExpireAt           string
 	CreatedAt          string `xorm:"created"`
 	UpdatedAt          string `xorm:"updated"`
 	DeletedAt          string `xorm:"deleted"`

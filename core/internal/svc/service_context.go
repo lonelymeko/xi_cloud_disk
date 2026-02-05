@@ -29,6 +29,7 @@ type ServiceContext struct {
 type RedisClient interface {
 	Get(ctx context.Context, key string) *redis.StringCmd
 	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd
+	SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.BoolCmd
 	Del(ctx context.Context, keys ...string) *redis.IntCmd
 	Ping(ctx context.Context) *redis.StatusCmd
 }
@@ -57,7 +58,11 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	eng := deps.initDB(c.MySQL.DataSource)
 	_ = deps.ensureSchema(eng)
 	_ = deps.ensureDefaultAdmin(eng)
-	rmqConn, rmqCh := deps.initRabbitMQ(c.RabbitMQ.Host, c.RabbitMQ.Port, c.RabbitMQ.Username, c.RabbitMQ.Password, c.RabbitMQ.Vhost)
+	var rmqConn *amqp091.Connection
+	var rmqCh *amqp091.Channel
+	if c.RabbitMQ.Host != "" && c.RabbitMQ.Port != 0 && c.RabbitMQ.Username != "" {
+		rmqConn, rmqCh = deps.initRabbitMQ(c.RabbitMQ.Host, c.RabbitMQ.Port, c.RabbitMQ.Username, c.RabbitMQ.Password, c.RabbitMQ.Vhost)
+	}
 	// //启动消费者
 	// consumer := mq.NewConsumer(rmqConn)
 	// consumer.Start()

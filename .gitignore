@@ -49,3 +49,4 @@ coverage.html
 web/
 go.mod
 go.sum
+reference-project/

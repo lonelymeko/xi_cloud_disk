@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss"
-	"github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss/credentials"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -29,12 +28,10 @@ func UploadToOSSMultipart(filePath string, originalFilename string, fileSize int
 		objectName = key
 	)
 
-	// 配置 OSS 客户端
-	cfg := oss.LoadDefaultConfig().
-		WithCredentialsProvider(credentials.NewEnvironmentVariableCredentialsProvider()).
-		WithRegion(region)
-
-	client := oss.NewClient(cfg)
+	client, err := newOSSClient(region)
+	if err != nil {
+		return "", err
+	}
 
 	// 设置总超时时间（根据文件大小动态计算，最少 5 分钟）
 	timeout := time.Duration(fileSize/1024/1024) * time.Second * 2 // 每 MB 2 秒
@@ -126,7 +123,7 @@ func UploadToOSSMultipart(filePath string, originalFilename string, fileSize int
 	logx.Infof("分片上传完成: Bucket=%s, Key=%s, ETag=%s",
 		*completeResult.Bucket, *completeResult.Key, *completeResult.ETag)
 
-	return fmt.Sprintf("https://%s.oss-%s.aliyuncs.com/%s", bucketName, region, objectName), nil
+	return objectName, nil
 }
 
 // uploadPartsConfig 分片上传配置

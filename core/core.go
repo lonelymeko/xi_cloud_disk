@@ -7,6 +7,7 @@ import (
 	"cloud_disk/core/common"
 	"cloud_disk/core/internal/config"
 	"cloud_disk/core/internal/handler"
+	"cloud_disk/core/internal/logic"
 	"cloud_disk/core/internal/mq"
 	"cloud_disk/core/internal/svc"
 	"context"
@@ -62,12 +63,38 @@ func main() {
 		rport := os.Getenv("REDIS_PORT")
 		rpass := os.Getenv("REDIS_PASSWORD")
 		rdbStr := os.Getenv("REDIS_DB")
-		c.Redis.Addr = fmt.Sprintf("%s:%s", rhost, rport)
+		if rhost != "" && rport != "" {
+			c.Redis.Addr = fmt.Sprintf("%s:%s", rhost, rport)
+		}
 		c.Redis.Password = rpass
 		if rdbStr != "" {
 			if v, err := strconv.Atoi(rdbStr); err == nil {
 				c.Redis.DB = v
 			}
+		}
+	}
+	if os.Getenv("RABBITMQ_HOST") != "" {
+		host := os.Getenv("RABBITMQ_HOST")
+		portStr := os.Getenv("RABBITMQ_PORT")
+		user := os.Getenv("RABBITMQ_USERNAME")
+		pass := os.Getenv("RABBITMQ_PASSWORD")
+		vhost := os.Getenv("RABBITMQ_VHOST")
+		if host != "" {
+			c.RabbitMQ.Host = host
+		}
+		if portStr != "" {
+			if v, err := strconv.Atoi(portStr); err == nil {
+				c.RabbitMQ.Port = v
+			}
+		}
+		if user != "" {
+			c.RabbitMQ.Username = user
+		}
+		if pass != "" {
+			c.RabbitMQ.Password = pass
+		}
+		if vhost != "" {
+			c.RabbitMQ.Vhost = vhost
 		}
 	}
 
@@ -97,9 +124,13 @@ func main() {
 
 	ctx := svc.NewServiceContext(c)
 
-	consumer := mq.NewConsumer(context.Background(), ctx, ctx.RabbitMQChannel)
-	consumer.Start() // 后台启动
-
+	if ctx.RabbitMQChannel != nil {
+		consumer := mq.NewConsumer(context.Background(), ctx, ctx.RabbitMQChannel)
+		consumer.Start()
+	} else {
+		logx.Info("RabbitMQ disabled: channel not initialized")
+	}
+	logic.StartRecycleJob(context.Background(), ctx)
 	handler.RegisterHandlers(server, ctx)
 
 	checkCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)

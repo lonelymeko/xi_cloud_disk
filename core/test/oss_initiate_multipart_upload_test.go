@@ -41,7 +41,7 @@ func TestInitiateMultipartUpload(t *testing.T) {
 	filePath := "test.mov"
 
 	// 检查文件是否存在
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+	if _, statErr := os.Stat(filePath); os.IsNotExist(statErr) {
 		t.Skipf("测试文件不存在: %s", filePath)
 	}
 
@@ -108,14 +108,14 @@ func TestInitiateMultipartUpload(t *testing.T) {
 		partData := make([]byte, currentPartSize)
 
 		// 定位到分片起始位置并读取数据
-		_, err := file.Seek(offset, 0)
+		_, err = file.Seek(offset, 0)
 		if err != nil {
 			t.Fatalf("文件定位失败: %v", err)
 		}
 
-		n, err := io.ReadFull(file, partData)
-		if err != nil && err != io.ErrUnexpectedEOF {
-			t.Fatalf("读取文件分片失败: %v", err)
+		n, readErr := io.ReadFull(file, partData)
+		if readErr != nil && readErr != io.ErrUnexpectedEOF {
+			t.Fatalf("读取文件分片失败: %v", readErr)
 		}
 
 		// 为每个分片设置独立的超时上下文（2分钟）
@@ -123,7 +123,7 @@ func TestInitiateMultipartUpload(t *testing.T) {
 
 		// 上传分片（使用 bytes.NewReader）
 		partStartTime := time.Now()
-		partResult, err := client.UploadPart(partCtx, &oss.UploadPartRequest{
+		partResult, partErr := client.UploadPart(partCtx, &oss.UploadPartRequest{
 			Bucket:     oss.Ptr(bucket),
 			Key:        oss.Ptr(key),
 			UploadId:   oss.Ptr(uploadId),
@@ -132,8 +132,8 @@ func TestInitiateMultipartUpload(t *testing.T) {
 		})
 		partCancel()
 
-		if err != nil {
-			t.Fatalf("上传分片 %d 失败: %v", partNumber, err)
+		if partErr != nil {
+			t.Fatalf("上传分片 %d 失败: %v", partNumber, partErr)
 		}
 
 		partDuration := time.Since(partStartTime)

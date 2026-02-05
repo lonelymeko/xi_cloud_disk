@@ -110,7 +110,7 @@ func (c *Consumer) processFile(body []byte) (err error) {
 	var task types.UploadEvent
 	err = json.Unmarshal(body, &task)
 	if err != nil {
-		logx.Error("Failed to unmarshal message body: %v", err)
+		logx.Errorf("Failed to unmarshal message body: %v", err)
 		return err
 	}
 	ur := new(models.UserRepository)
@@ -278,12 +278,13 @@ func (c *Consumer) processFile(body []byte) (err error) {
 
 		// 文件不存在就存入中央数据库
 		rp := &models.RepositoryPool{
-			Name:     task.Name,
-			Hash:     task.Hash,
-			Ext:      path.Ext(OssPath),
-			Size:     actualSize,
-			Path:     OssPath,
-			Identity: utils.UUID(),
+			Name:      task.Name,
+			Hash:      task.Hash,
+			Ext:       path.Ext(OssPath),
+			Size:      actualSize,
+			Path:      OssPath,
+			ObjectKey: OssPath,
+			Identity:  utils.UUID(),
 		}
 		_, err = c.svcCtx.DBEngine.Insert(rp)
 		if err != nil {

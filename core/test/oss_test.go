@@ -55,15 +55,15 @@ func TestUploadToOSS(t *testing.T) {
 		common.OSSBucketName = oldBucket
 	})
 
-	url, err := utils.UploadToOSS(bytes.NewBufferString("data"), "a.txt")
+	objectKey, err := utils.UploadToOSS(bytes.NewBufferString("data"), "a.txt")
 	if err != nil {
 		t.Fatalf("upload failed: %v", err)
 	}
 	if !called {
 		t.Fatal("upload not called")
 	}
-	if url != "https://b1.r1.aliyuncs.com/k.txt" {
-		t.Fatalf("unexpected url: %s", url)
+	if objectKey != "k.txt" {
+		t.Fatalf("unexpected object key: %s", objectKey)
 	}
 }
 
@@ -220,12 +220,12 @@ func TestOSSUploadDownloadDelete_Integration(t *testing.T) {
 		t.Fatalf("read file failed: %v", err)
 	}
 
-	url, err := utils.UploadToOSS(file, "test.txt")
+	objectKey, err := utils.UploadToOSS(file, "test.txt")
 	if err != nil {
 		t.Fatalf("upload failed: %v", err)
 	}
-	if url == "" {
-		t.Fatal("empty url")
+	if objectKey == "" {
+		t.Fatal("empty object key")
 	}
 
 	cfg := oss.LoadDefaultConfig().

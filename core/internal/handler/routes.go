@@ -58,6 +58,11 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 					Handler: UploadFileHandler(serverCtx),
 				},
 				{
+					Method:  http.MethodPost,
+					Path:    "/url",
+					Handler: DownloadURLHandler(serverCtx),
+				},
+				{
 					Method:  http.MethodPut,
 					Path:    "/user/file/move",
 					Handler: UserFileMoveHandler(serverCtx),
@@ -100,6 +105,11 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 					Method:  http.MethodGet,
 					Path:    "/get",
 					Handler: GetShareRecordHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/url",
+					Handler: ShareDownloadURLHandler(serverCtx),
 				},
 				{
 					Method:  http.MethodPost,

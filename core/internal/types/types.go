@@ -84,12 +84,13 @@ type SendVerificationCodeResponse struct {
 }
 
 type UploadFileRequest struct {
-	Hash     string `json:"hash,optional"`
-	Name     string `json:"name,optional"`
-	Ext      string `json:"ext,optional"`
-	Size     int64  `json:"size,optional"`
-	Path     string `json:"path,optional"`
-	ParentId int64  `json:"parent_id,optional"`
+	Hash      string `json:"hash,optional"`
+	Name      string `json:"name,optional"`
+	Ext       string `json:"ext,optional"`
+	Size      int64  `json:"size,optional"`
+	Path      string `json:"path,optional"`
+	ObjectKey string `json:"object_key,optional"`
+	ParentId  int64  `json:"parent_id,optional"`
 }
 
 type UploadFileResponse struct {
@@ -156,4 +157,24 @@ type UserFolderDeleteRequest struct {
 }
 
 type UserFolderDeleteResponse struct {
+}
+
+type DownloadURLRequest struct {
+	RepositoryIdentity string `json:"repository_identity"`
+	Expires            int    `json:"expires"`
+}
+
+type DownloadURLResponse struct {
+	URL     string `json:"url"`
+	Expires int    `json:"expires"`
+}
+
+type ShareDownloadURLRequest struct {
+	ShareIdentity string `json:"share_identity"`
+	Expires       int    `json:"expires"`
+}
+
+type ShareDownloadURLResponse struct {
+	URL     string `json:"url"`
+	Expires int    `json:"expires"`
 }

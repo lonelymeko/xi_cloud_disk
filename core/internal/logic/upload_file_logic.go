@@ -53,12 +53,13 @@ func (l *UploadFileLogic) UploadFile(req *types.UploadFileRequest, isExisted boo
 		return nil, err
 	}
 
-	return &types.UploadFileResponse{
-		Message: "文件上传开始",
-	}, nil
+	return &types.UploadFileResponse{Message: "文件上传开始"}, nil
 }
 
 func (l *UploadFileLogic) PublishUploadEvent(body []byte) error {
+	if l.svcCtx.RabbitMQConn == nil {
+		return errors.New("RabbitMQ 未初始化")
+	}
 	ch, err := l.svcCtx.RabbitMQConn.Channel()
 	if err != nil {
 		return err

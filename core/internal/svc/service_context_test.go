@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rabbitmq/amqp091-go"
 	"github.com/redis/go-redis/v9"
 	"github.com/zeromicro/go-zero/rest"
 	"xorm.io/xorm"
@@ -37,12 +38,18 @@ func TestNewServiceContextUsesDeps(t *testing.T) {
 	cfg.Redis.DB = 2
 	cfg.Auth.AccessSecret = "secret"
 	cfg.Auth.AccessExpire = 3600
+	cfg.RabbitMQ.Host = "host"
+	cfg.RabbitMQ.Port = 5672
+	cfg.RabbitMQ.Username = "user"
+	cfg.RabbitMQ.Password = "pass"
+	cfg.RabbitMQ.Vhost = "/"
 
 	calledInitDB := false
 	calledEnsureSchema := false
 	calledEnsureDefaultAdmin := false
 	calledInitRedis := false
 	calledNewFileAuth := false
+	calledInitRabbitMQ := false
 
 	fakeDB := &xorm.Engine{}
 	fakeRedis := &fakeRedisClient{}
@@ -83,6 +90,10 @@ func TestNewServiceContextUsesDeps(t *testing.T) {
 			calledEnsureDefaultAdmin = true
 			return nil
 		},
+		initRabbitMQ: func(host string, port int, username, password, vhost string) (*amqp091.Connection, *amqp091.Channel) {
+			calledInitRabbitMQ = true
+			return nil, nil
+		},
 	}
 
 	ctx := NewServiceContext(cfg)
@@ -98,7 +109,7 @@ func TestNewServiceContextUsesDeps(t *testing.T) {
 	if ctx.FileAuthMiddleware == nil {
 		t.Fatal("middleware is nil")
 	}
-	if !calledInitDB || !calledEnsureSchema || !calledEnsureDefaultAdmin || !calledInitRedis || !calledNewFileAuth {
+	if !calledInitDB || !calledEnsureSchema || !calledEnsureDefaultAdmin || !calledInitRedis || !calledNewFileAuth || !calledInitRabbitMQ {
 		t.Fatal("deps not fully used")
 	}
 }
@@ -110,6 +121,9 @@ func (f *fakeRedisClient) Get(ctx context.Context, key string) *redis.StringCmd 
 }
 func (f *fakeRedisClient) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd {
 	return redis.NewStatusResult("", nil)
+}
+func (f *fakeRedisClient) SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.BoolCmd {
+	return redis.NewBoolResult(true, nil)
 }
 func (f *fakeRedisClient) Del(ctx context.Context, keys ...string) *redis.IntCmd {
 	return redis.NewIntResult(0, nil)

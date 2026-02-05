@@ -1,22 +1,46 @@
 package test
 
 import (
+	"fmt"
 	"log"
+	"os"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/joho/godotenv"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-const (
-	// RabbitMQ 连接配置
-	rabbitmqURL  = "amqp://guest:guest@localhost:5672/"
-	queueName    = "test_queue"
-	exchangeName = "test_exchange"
-)
+func rabbitmqURL(t *testing.T) string {
+	t.Helper()
+	_ = godotenv.Load("core/.env")
+	host := os.Getenv("RABBITMQ_HOST")
+	port := os.Getenv("RABBITMQ_PORT")
+	user := os.Getenv("RABBITMQ_USERNAME")
+	pass := os.Getenv("RABBITMQ_PASSWORD")
+	vhost := os.Getenv("RABBITMQ_VHOST")
+	if host == "" || port == "" || user == "" {
+		t.Skip("RabbitMQ env not set")
+	}
+	if vhost == "" {
+		vhost = "/"
+	}
+	if !strings.HasPrefix(vhost, "/") {
+		vhost = "/" + vhost
+	}
+	return fmt.Sprintf("amqp://%s:%s@%s:%s%s", user, pass, host, port, vhost)
+}
+
+func uniqueName(t *testing.T, prefix string) string {
+	t.Helper()
+	safe := strings.ReplaceAll(t.Name(), "/", "_")
+	return fmt.Sprintf("%s_%s_%d", prefix, safe, time.Now().UnixNano())
+}
 
 // TestRabbitMQConnection 测试 RabbitMQ 连接
 func TestRabbitMQConnection(t *testing.T) {
-	conn, err := amqp.Dial(rabbitmqURL)
+	conn, err := amqp.Dial(rabbitmqURL(t))
 	if err != nil {
 		t.Fatalf("无法连接到 RabbitMQ: %v", err)
 	}
@@ -27,7 +51,7 @@ func TestRabbitMQConnection(t *testing.T) {
 
 // TestRabbitMQChannel 测试创建 Channel
 func TestRabbitMQChannel(t *testing.T) {
-	conn, err := amqp.Dial(rabbitmqURL)
+	conn, err := amqp.Dial(rabbitmqURL(t))
 	if err != nil {
 		t.Fatalf("无法连接到 RabbitMQ: %v", err)
 	}
@@ -44,7 +68,7 @@ func TestRabbitMQChannel(t *testing.T) {
 
 // TestRabbitMQDeclareQueue 测试声明队列
 func TestRabbitMQDeclareQueue(t *testing.T) {
-	conn, err := amqp.Dial(rabbitmqURL)
+	conn, err := amqp.Dial(rabbitmqURL(t))
 	if err != nil {
 		t.Fatalf("无法连接到 RabbitMQ: %v", err)
 	}
@@ -56,13 +80,14 @@ func TestRabbitMQDeclareQueue(t *testing.T) {
 	}
 	defer ch.Close()
 
+	qName := uniqueName(t, "test_queue")
 	q, err := ch.QueueDeclare(
-		queueName, // 队列名称
-		false,     // durable（持久化）：false 表示队列仅存于内存，RabbitMQ 重启后丢失
-		false,     // delete when unused（未使用时删除）：false 表示即使无消费者，队列也不删除
-		false,     // exclusive（排他性）：false 表示多个连接可访问该队列
-		false,     // no-wait（非阻塞）：false 表示等待服务器返回声明成功的确认
-		nil,       // arguments（自定义参数）：nil 表示使用默认配置
+		qName, // 队列名称
+		false, // durable（持久化）：false 表示队列仅存于内存，RabbitMQ 重启后丢失
+		false, // delete when unused（未使用时删除）：false 表示即使无消费者，队列也不删除
+		false, // exclusive（排他性）：false 表示多个连接可访问该队列
+		false, // no-wait（非阻塞）：false 表示等待服务器返回声明成功的确认
+		nil,   // arguments（自定义参数）：nil 表示使用默认配置
 	)
 	if err != nil {
 		t.Fatalf("无法声明队列: %v", err)
@@ -73,7 +98,7 @@ func TestRabbitMQDeclareQueue(t *testing.T) {
 
 // TestRabbitMQPublishAndConsume 测试发布和消费消息
 func TestRabbitMQPublishAndConsume(t *testing.T) {
-	conn, err := amqp.Dial(rabbitmqURL)
+	conn, err := amqp.Dial(rabbitmqURL(t))
 	if err != nil {
 		t.Fatalf("无法连接到 RabbitMQ: %v", err)
 	}
@@ -86,8 +111,9 @@ func TestRabbitMQPublishAndConsume(t *testing.T) {
 	defer ch.Close()
 
 	// 声明队列
+	qName := uniqueName(t, "test_queue")
 	q, err := ch.QueueDeclare(
-		queueName,
+		qName,
 		false,
 		false,
 		false,
@@ -139,7 +165,7 @@ func TestRabbitMQPublishAndConsume(t *testing.T) {
 
 // TestRabbitMQExchange 测试交换机
 func TestRabbitMQExchange(t *testing.T) {
-	conn, err := amqp.Dial(rabbitmqURL)
+	conn, err := amqp.Dial(rabbitmqURL(t))
 	if err != nil {
 		t.Fatalf("无法连接到 RabbitMQ: %v", err)
 	}
@@ -152,25 +178,26 @@ func TestRabbitMQExchange(t *testing.T) {
 	defer ch.Close()
 
 	// 声明交换机
+	exName := uniqueName(t, "test_exchange")
 	err = ch.ExchangeDeclare(
-		exchangeName, // name
-		"fanout",     // type
-		false,        // durable
-		false,        // auto-deleted
-		false,        // internal
-		false,        // no-wait
-		nil,          // arguments
+		exName,   // name
+		"fanout", // type
+		false,    // durable
+		false,    // auto-deleted
+		false,    // internal
+		false,    // no-wait
+		nil,      // arguments
 	)
 	if err != nil {
 		t.Fatalf("无法声明交换机: %v", err)
 	}
 
-	t.Logf("成功声明交换机: %s", exchangeName)
+	t.Logf("成功声明交换机: %s", exName)
 }
 
 // TestRabbitMQQueueBind 测试队列绑定
 func TestRabbitMQQueueBind(t *testing.T) {
-	conn, err := amqp.Dial(rabbitmqURL)
+	conn, err := amqp.Dial(rabbitmqURL(t))
 	if err != nil {
 		t.Fatalf("无法连接到 RabbitMQ: %v", err)
 	}
@@ -183,22 +210,24 @@ func TestRabbitMQQueueBind(t *testing.T) {
 	defer ch.Close()
 
 	// 声明交换机
-	err = ch.ExchangeDeclare(exchangeName, "direct", false, false, false, false, nil)
+	exName := uniqueName(t, "test_exchange")
+	err = ch.ExchangeDeclare(exName, "direct", false, false, false, false, nil)
 	if err != nil {
 		t.Fatalf("无法声明交换机: %v", err)
 	}
 
 	// 声明队列
-	q, err := ch.QueueDeclare(queueName, false, false, false, false, nil)
+	qName := uniqueName(t, "test_queue")
+	q, err := ch.QueueDeclare(qName, false, false, false, false, nil)
 	if err != nil {
 		t.Fatalf("无法声明队列: %v", err)
 	}
 
 	// 绑定队列到交换机
 	err = ch.QueueBind(
-		q.Name,       // queue name
-		"test_key",   // routing key
-		exchangeName, // exchange
+		q.Name,     // queue name
+		"test_key", // routing key
+		exName,     // exchange
 		false,
 		nil,
 	)
@@ -206,12 +235,12 @@ func TestRabbitMQQueueBind(t *testing.T) {
 		t.Fatalf("无法绑定队列: %v", err)
 	}
 
-	t.Logf("成功绑定队列 %s 到交换机 %s", q.Name, exchangeName)
+	t.Logf("成功绑定队列 %s 到交换机 %s", q.Name, exName)
 }
 
 // TestRabbitMQMultipleMessages 测试批量发送和接收消息
 func TestRabbitMQMultipleMessages(t *testing.T) {
-	conn, err := amqp.Dial(rabbitmqURL)
+	conn, err := amqp.Dial(rabbitmqURL(t))
 	if err != nil {
 		t.Fatalf("无法连接到 RabbitMQ: %v", err)
 	}
@@ -223,7 +252,8 @@ func TestRabbitMQMultipleMessages(t *testing.T) {
 	}
 	defer ch.Close()
 
-	q, err := ch.QueueDeclare(queueName, false, false, false, false, nil)
+	qName := uniqueName(t, "test_queue")
+	q, err := ch.QueueDeclare(qName, false, false, false, false, nil)
 	if err != nil {
 		t.Fatalf("无法声明队列: %v", err)
 	}
