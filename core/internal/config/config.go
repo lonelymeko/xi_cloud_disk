@@ -19,4 +19,11 @@ type Config struct {
 		Password string
 		DB       int
 	}
+	RabbitMQ struct {
+		Host     string
+		Port     int
+		Username string
+		Password string
+		Vhost    string
+	}
 }
