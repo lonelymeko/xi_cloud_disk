@@ -83,11 +83,12 @@ func main() {
 		ok   bool
 		err  error
 	}
-	ch := make(chan res, 3)
+    ch := make(chan res, 4)
 	go func() { err := ctx.DBEngine.Ping(); ch <- res{"database", err == nil, err} }()
 	go func() { err := ctx.RedisClient.Ping(checkCtx).Err(); ch <- res{"redis", err == nil, err} }()
 	go func() { err := utils.EmailConnectivity(checkCtx); ch <- res{"email", err == nil, err} }()
-	for i := 0; i < 3; i++ {
+    go func() { err := utils.OSSConnectivity(checkCtx); ch <- res{"oss", err == nil, err} }()
+    for i := 0; i < 4; i++ {
 		r := <-ch
 		if r.ok {
 			logx.Infof("startup %s ok", r.name)

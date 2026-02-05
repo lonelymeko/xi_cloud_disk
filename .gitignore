@@ -40,3 +40,8 @@ Thumbs.db
 # Dependency managers
 node_modules/
 vendor/
+
+# 临时控制git
+web/
+go.mod
+go.sum
