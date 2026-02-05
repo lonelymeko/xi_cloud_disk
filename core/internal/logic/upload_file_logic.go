@@ -1,4 +1,4 @@
-// Code scaffolded by goctl. Safe to edit.
+// goctl 生成代码，可安全编辑。
 // goctl 1.9.2
 
 package logic
@@ -15,12 +15,14 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+// UploadFileLogic 上传文件逻辑。
 type UploadFileLogic struct {
 	logx.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
+// NewUploadFileLogic 创建上传文件逻辑。
 func NewUploadFileLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UploadFileLogic {
 	return &UploadFileLogic{
 		Logger: logx.WithContext(ctx),

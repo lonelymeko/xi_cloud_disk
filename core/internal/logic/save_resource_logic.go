@@ -1,4 +1,4 @@
-// Code scaffolded by goctl. Safe to edit.
+// goctl 生成代码，可安全编辑。
 // goctl 1.9.2
 
 package logic
@@ -16,12 +16,14 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+// SaveResourceLogic 保存资源逻辑。
 type SaveResourceLogic struct {
 	logx.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
+// NewSaveResourceLogic 创建保存资源逻辑。
 func NewSaveResourceLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SaveResourceLogic {
 	return &SaveResourceLogic{
 		Logger: logx.WithContext(ctx),
@@ -30,6 +32,7 @@ func NewSaveResourceLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Save
 	}
 }
 
+// SaveResource 保存分享资源。
 func (l *SaveResourceLogic) SaveResource(req *types.SaveResourceRequest) (resp *types.SaveResourceResponse, err error) {
 	userIdentity, ok := l.ctx.Value("user_identity").(string)
 	if !ok {

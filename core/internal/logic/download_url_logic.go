@@ -16,12 +16,14 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+// DownloadURLLogic 下载链接逻辑。
 type DownloadURLLogic struct {
 	logx.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
+// NewDownloadURLLogic 创建下载链接逻辑。
 func NewDownloadURLLogic(ctx context.Context, svcCtx *svc.ServiceContext) *DownloadURLLogic {
 	return &DownloadURLLogic{
 		Logger: logx.WithContext(ctx),
@@ -30,6 +32,7 @@ func NewDownloadURLLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Downl
 	}
 }
 
+// DownloadURL 获取下载链接。
 func (l *DownloadURLLogic) DownloadURL(req *types.DownloadURLRequest) (resp *types.DownloadURLResponse, err error) {
 	userIdentity, ok := l.ctx.Value("user_identity").(string)
 	if !ok {
@@ -105,6 +108,7 @@ func (l *DownloadURLLogic) DownloadURL(req *types.DownloadURLRequest) (resp *typ
 	return &types.DownloadURLResponse{URL: url, Expires: expires}, nil
 }
 
+// normalizeExpires 规范化过期时间。
 func normalizeExpires(expires int) int {
 	if expires <= 0 {
 		return 3600
@@ -116,6 +120,7 @@ func normalizeExpires(expires int) int {
 	return expires
 }
 
+// getCachedURL 读取缓存的下载链接。
 func getCachedURL(ctx context.Context, rdb svc.RedisClient, key string) (string, bool) {
 	val, err := rdb.Get(ctx, key).Result()
 	if err == redis.Nil || err != nil {
@@ -127,6 +132,7 @@ func getCachedURL(ctx context.Context, rdb svc.RedisClient, key string) (string,
 	return val, true
 }
 
+// setCachedURL 写入缓存的下载链接。
 func setCachedURL(ctx context.Context, rdb svc.RedisClient, key, url string, expires int) {
 	_ = rdb.Set(ctx, key, url, time.Duration(expires)*time.Second).Err()
 }

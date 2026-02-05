@@ -16,12 +16,14 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+// ShareDownloadURLLogic 分享下载链接逻辑。
 type ShareDownloadURLLogic struct {
 	logx.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
+// NewShareDownloadURLLogic 创建分享下载链接逻辑。
 func NewShareDownloadURLLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ShareDownloadURLLogic {
 	return &ShareDownloadURLLogic{
 		Logger: logx.WithContext(ctx),
@@ -30,6 +32,7 @@ func NewShareDownloadURLLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 	}
 }
 
+// ShareDownloadURL 获取分享下载链接。
 func (l *ShareDownloadURLLogic) ShareDownloadURL(req *types.ShareDownloadURLRequest) (resp *types.ShareDownloadURLResponse, err error) {
 	if req.ShareIdentity == "" {
 		return nil, errors.New("分享标识不能为空")
@@ -107,6 +110,7 @@ func (l *ShareDownloadURLLogic) ShareDownloadURL(req *types.ShareDownloadURLRequ
 	return &types.ShareDownloadURLResponse{URL: url, Expires: expires}, nil
 }
 
+// getCachedShareURL 读取缓存的分享下载链接。
 func getCachedShareURL(ctx context.Context, rdb svc.RedisClient, key string) (string, bool) {
 	val, err := rdb.Get(ctx, key).Result()
 	if err == redis.Nil || err != nil {
@@ -118,6 +122,7 @@ func getCachedShareURL(ctx context.Context, rdb svc.RedisClient, key string) (st
 	return val, true
 }
 
+// setCachedShareURL 写入缓存的分享下载链接。
 func setCachedShareURL(ctx context.Context, rdb svc.RedisClient, key, url string, expires int) {
 	_ = rdb.Set(ctx, key, url, time.Duration(expires)*time.Second).Err()
 }

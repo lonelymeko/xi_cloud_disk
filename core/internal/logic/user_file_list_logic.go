@@ -1,4 +1,4 @@
-// Code scaffolded by goctl. Safe to edit.
+// goctl 生成代码，可安全编辑。
 // goctl 1.9.2
 
 package logic
@@ -16,12 +16,14 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+// UserFileListLogic 用户文件列表逻辑。
 type UserFileListLogic struct {
 	logx.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
+// NewUserFileListLogic 创建用户文件列表逻辑。
 func NewUserFileListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UserFileListLogic {
 	return &UserFileListLogic{
 		Logger: logx.WithContext(ctx),
@@ -30,6 +32,7 @@ func NewUserFileListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *User
 	}
 }
 
+// UserFileList 获取用户文件列表。
 func (l *UserFileListLogic) UserFileList(req *types.UserFileListRequest) (resp *types.UserFileListResponse, err error) {
 	uf := make([]*types.UserFile, 0)
 	var cnt int64

@@ -1,4 +1,4 @@
-// Code scaffolded by goctl. Safe to edit.
+// goctl 生成代码，可安全编辑。
 // goctl 1.9.2
 
 package logic
@@ -15,12 +15,14 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+// UserFileNameUpdateLogic 用户文件名更新逻辑。
 type UserFileNameUpdateLogic struct {
 	logx.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
+// NewUserFileNameUpdateLogic 创建用户文件名更新逻辑。
 func NewUserFileNameUpdateLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UserFileNameUpdateLogic {
 	return &UserFileNameUpdateLogic{
 		Logger: logx.WithContext(ctx),
@@ -29,6 +31,7 @@ func NewUserFileNameUpdateLogic(ctx context.Context, svcCtx *svc.ServiceContext)
 	}
 }
 
+// UserFileNameUpdate 更新用户文件名。
 func (l *UserFileNameUpdateLogic) UserFileNameUpdate(req *types.UserFileNameUpdateRequest) (resp *types.UserFileNameUpdateResponse, err error) {
 	data := models.UserRepository{Name: req.Name}
 	// 获取用户身份

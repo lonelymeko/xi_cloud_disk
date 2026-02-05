@@ -1,4 +1,4 @@
-// Code scaffolded by goctl. Safe to edit.
+// goctl 生成代码，可安全编辑。
 // goctl 1.9.2
 
 package logic
@@ -14,12 +14,14 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+// CreateShareRecordLogic 创建分享记录逻辑。
 type CreateShareRecordLogic struct {
 	logx.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
+// NewCreateShareRecordLogic 创建分享记录逻辑。
 func NewCreateShareRecordLogic(ctx context.Context, svcCtx *svc.ServiceContext) *CreateShareRecordLogic {
 	return &CreateShareRecordLogic{
 		Logger: logx.WithContext(ctx),
@@ -28,6 +30,7 @@ func NewCreateShareRecordLogic(ctx context.Context, svcCtx *svc.ServiceContext) 
 	}
 }
 
+// CreateShareRecord 创建分享记录。
 func (l *CreateShareRecordLogic) CreateShareRecord(req *types.CreateShareRecordRequest) (resp *types.CreateShareRecordResponse, err error) {
 	userIdentity, ok := l.ctx.Value("user_identity").(string)
 	if !ok {

@@ -1,4 +1,4 @@
-// Code scaffolded by goctl. Safe to edit.
+// goctl 生成代码，可安全编辑。
 // goctl 1.9.2
 
 package logic
@@ -17,12 +17,14 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+// UserFolderDeleteLogic 用户文件夹删除逻辑。
 type UserFolderDeleteLogic struct {
 	logx.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
+// NewUserFolderDeleteLogic 创建用户文件夹删除逻辑。
 func NewUserFolderDeleteLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UserFolderDeleteLogic {
 	return &UserFolderDeleteLogic{
 		Logger: logx.WithContext(ctx),
@@ -31,6 +33,7 @@ func NewUserFolderDeleteLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 	}
 }
 
+// UserFolderDelete 删除用户文件夹。
 func (l *UserFolderDeleteLogic) UserFolderDelete(req *types.UserFolderDeleteRequest) (resp *types.UserFolderDeleteResponse, err error) {
 	userIdentity, ok := l.ctx.Value("user_identity").(string)
 	if !ok {

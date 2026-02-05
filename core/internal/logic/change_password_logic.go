@@ -12,12 +12,14 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+// ChangePasswordLogic 修改密码逻辑。
 type ChangePasswordLogic struct {
 	logx.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
+// NewChangePasswordLogic 创建修改密码逻辑。
 func NewChangePasswordLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ChangePasswordLogic {
 	return &ChangePasswordLogic{
 		Logger: logx.WithContext(ctx),
@@ -26,6 +28,7 @@ func NewChangePasswordLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Ch
 	}
 }
 
+// ChangePassword 修改密码。
 func (l *ChangePasswordLogic) ChangePassword(req *types.ChangePasswordRequest) (resp *types.ChangePasswordResponse, err error) {
 	identity, err := resolveChangePasswordIdentity(l.ctx, req)
 	if err != nil {
@@ -70,6 +73,7 @@ func (l *ChangePasswordLogic) ChangePassword(req *types.ChangePasswordRequest) (
 	return &types.ChangePasswordResponse{Message: "密码更新成功"}, nil
 }
 
+// resolveChangePasswordIdentity 解析并校验修改密码请求中的身份信息。
 func resolveChangePasswordIdentity(ctx context.Context, req *types.ChangePasswordRequest) (string, error) {
 	identity := strings.TrimSpace(req.Identity)
 	if v := ctx.Value("user_identity"); v != nil {
@@ -88,6 +92,7 @@ func resolveChangePasswordIdentity(ctx context.Context, req *types.ChangePasswor
 	return identity, nil
 }
 
+// isPasswordStrong 校验密码强度。
 func isPasswordStrong(password string) bool {
 	if len(password) < 8 {
 		return false
