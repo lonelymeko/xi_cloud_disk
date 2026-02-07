@@ -1,11 +1,17 @@
 package common
 
-var OSSRegion = "cn-chengdu"
-var OSSBucketName = "xi-cloud-disk-chengdu"
+import "os"
 
-// 分页的默认参数
+// OSSRegion OSS 默认地域。
+var OSSRegion = os.Getenv("OSS_REGION")
+
+// OSSBucketName OSS 默认存储桶名称。
+var OSSBucketName = os.Getenv("OSS_BUCKET_NAME")
+
+// PageSize 分页默认大小。
 var PageSize = 20
 
+// DataTimeFormat 时间格式化模板。
 var DataTimeFormat = "2006-01-02 15:04:05"
 
 // 分片上传配置
@@ -15,6 +21,7 @@ const (
 
 	// MultipartUploadThreshold 超过此大小使用分片上传：100MB
 	MultipartUploadThreshold = 100 * 1024 * 1024
+	MaxUploadSize            = 10 * 1024 * 1024 * 1024
 
 	// MaxConcurrentParts 最大并发上传分片数
 	MaxConcurrentParts = 3

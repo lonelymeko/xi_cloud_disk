@@ -1,4 +1,4 @@
-// Code scaffolded by goctl. Safe to edit.
+// goctl 生成代码，可安全编辑。
 // goctl 1.9.2
 
 package logic
@@ -6,20 +6,25 @@ package logic
 import (
 	"context"
 	"errors"
+	"time"
 
+	"cloud_disk/core/common"
 	"cloud_disk/core/internal/svc"
 	"cloud_disk/core/internal/types"
 	"cloud_disk/core/models"
+	"cloud_disk/core/utils"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+// UserFolderDeleteLogic 用户文件夹删除逻辑。
 type UserFolderDeleteLogic struct {
 	logx.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
+// NewUserFolderDeleteLogic 创建用户文件夹删除逻辑。
 func NewUserFolderDeleteLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UserFolderDeleteLogic {
 	return &UserFolderDeleteLogic{
 		Logger: logx.WithContext(ctx),
@@ -28,6 +33,7 @@ func NewUserFolderDeleteLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 	}
 }
 
+// UserFolderDelete 删除用户文件夹。
 func (l *UserFolderDeleteLogic) UserFolderDelete(req *types.UserFolderDeleteRequest) (resp *types.UserFolderDeleteResponse, err error) {
 	userIdentity, ok := l.ctx.Value("user_identity").(string)
 	if !ok {
@@ -63,18 +69,61 @@ func (l *UserFolderDeleteLogic) UserFolderDelete(req *types.UserFolderDeleteRequ
 		return nil, errors.New("文件或文件夹不存在")
 	}
 
-	// 批量软删除（使用硬删除，xorm 的 Delete 方法）
+	now := time.Now()
+	nowStr := now.Format(common.DataTimeFormat)
+	expireStr := now.Add(utils.RecycleTTL()).Format(common.DataTimeFormat)
 	affected, err := l.svcCtx.DBEngine.
 		Table("user_repository").
 		In("identity", idsToDelete).
 		Where("user_identity = ?", userIdentity).
-		Delete(&models.UserRepository{})
+		Update(map[string]any{
+			"status":     common.StatusDeleted,
+			"deleted_at": nowStr,
+			"expire_at":  expireStr,
+		})
 
 	if err != nil {
 		logx.Errorf("删除失败: %v", err)
 		return nil, err
 	}
 
+	if affected > 0 {
+		var repos []models.UserRepository
+		_ = l.svcCtx.DBEngine.Table("user_repository").In("identity", idsToDelete).Find(&repos)
+		logs := make([]models.FileEventLog, 0, len(repos))
+		repoSet := map[string]struct{}{}
+		for _, item := range repos {
+			if item.RepositoryIdentity != "" {
+				repoSet[item.RepositoryIdentity] = struct{}{}
+			}
+			logs = append(logs, models.FileEventLog{
+				Identity:           utils.UUID(),
+				RepositoryIdentity: item.RepositoryIdentity,
+				UserIdentity:       userIdentity,
+				EventType:          common.EventDelete,
+			})
+		}
+		if len(logs) > 0 {
+			_, _ = l.svcCtx.DBEngine.Insert(&logs)
+		}
+		for repoID := range repoSet {
+			cnt, err := l.svcCtx.DBEngine.Table("user_repository").
+				Where("repository_identity = ? AND (status != ? OR status IS NULL)", repoID, common.StatusDeleted).
+				Count(new(models.UserRepository))
+			if err != nil {
+				continue
+			}
+			if cnt == 0 {
+				_, _ = l.svcCtx.DBEngine.Table("repository_pool").
+					Where("identity = ?", repoID).
+					Update(map[string]any{
+						"status":     common.StatusDeleted,
+						"deleted_at": nowStr,
+						"expire_at":  expireStr,
+					})
+			}
+		}
+	}
 	logx.Infof("成功删除 %d 个项目", affected)
 
 	resp = &types.UserFolderDeleteResponse{}

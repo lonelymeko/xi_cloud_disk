@@ -1,7 +1,13 @@
 openapi: 3.0.3
 info:
   title: Core API - 文件服务
-  description: 包含文件上传、下载等核心接口
+  description: |
+    包含文件上传、下载等核心接口。
+    
+    响应包裹：所有接口统一返回结构 {code,msg,data}
+    - code: 数字状态码（0 为成功）
+    - msg: 文本消息（错误信息或提示）
+    - data: 实际业务数据（各接口定义的响应体）
   version: 1.0.0
 servers:
   - url: http://127.0.0.1:8888/api/file
@@ -12,6 +18,10 @@ paths:
       summary: 文件上传接口
       description: |
         上传文件到服务器，支持秒传功能（基于文件 hash 判断文件是否已存在）。
+        
+        异步语义：
+        - 上传请求成功后，返回“上传任务已入队”，实际的压缩/分片上传由后台异步处理（RabbitMQ 队列）
+        - 客户端可在稍后通过文件列表或通知查看处理结果
         
         **智能压缩：**
         - **视频文件**：自动使用 ffmpeg 压缩（H.264 编码，CRF=23，音频 128k）
@@ -60,37 +70,32 @@ paths:
                 - file
       responses:
         '200':
-          description: 文件上传成功
+          description: 上传任务入队成功
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UploadFileResponse'
+                $ref: '#/components/schemas/ApiResponseUploadFileResponse'
         '400':
           description: 请求参数错误
         '413':
           description: 文件过大（Request Entity Too Large），超过 10GB 限制
         '500':
           description: 服务器内部错误
-  /user/repository:
+  /url:
     post:
-      summary: 创建用户文件仓库
+      summary: 获取文件下载链接
       description: |
-        将文件关联到用户的文件仓库中，建立用户与文件的关联关系。
+        获取当前用户文件的下载链接。
         
         **功能说明：**
-        - 用户上传文件后，需要调用此接口将文件添加到自己的文件仓库
-        - 支持文件夹层级结构（通过 parent_id 实现）
-        - 同一个文件可以被多个用户关联（文件去重）
+        - 仅支持下载自己的文件
+        - 返回带过期时间的下载链接
+        - 过期时间有上限（默认 1 小时，最长 7 天）
         
         **认证方式：**
         - 必须在 HTTP Header 中携带 JWT token
         - Header: `Authorization: Bearer <your_token>`
-        
-        **使用场景：**
-        1. 用户上传新文件后，调用此接口保存到个人仓库
-        2. 文件分享时，其他用户保存到自己的仓库
-        3. 文件移动/复制操作
-      operationId: UserRepositoryHandler
+      operationId: DownloadURLHandler
       security:
         - BearerAuth: []
       requestBody:
@@ -98,18 +103,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserRepositoryRequest'
+              $ref: '#/components/schemas/DownloadURLRequest'
       responses:
         '200':
-          description: 创建成功
+          description: 获取成功
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserRepositoryResponse'
+                $ref: '#/components/schemas/ApiResponseDownloadURLResponse'
         '400':
           description: 请求参数错误
         '401':
           description: 未授权或 token 无效
+        '404':
+          description: 文件不存在
         '500':
           description: 服务器内部错误
   /user/list:
@@ -151,7 +158,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserFileListResponse'
+                $ref: '#/components/schemas/ApiResponseUserFileListResponse'
         '400':
           description: 请求参数错误
         '401':
@@ -198,7 +205,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserFileNameUpdateResponse'
+                $ref: '#/components/schemas/ApiResponseUserFileNameUpdateResponse'
         '400':
           description: 请求参数错误
         '401':
@@ -255,7 +262,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserFolderCreateResponse'
+                $ref: '#/components/schemas/ApiResponseUserFolderCreateResponse'
         '400':
           description: 请求参数错误（文件夹名为空等）
         '401':
@@ -265,7 +272,7 @@ paths:
         '500':
           description: 服务器内部错误
   /user/folder/delete:
-    post:
+    delete:
       summary: 删除文件或文件夹
       description: |
         删除用户网盘中的文件或文件夹（支持递归删除）。
@@ -310,7 +317,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserFolderDeleteResponse'
+                $ref: '#/components/schemas/ApiResponseUserFolderDeleteResponse'
         '400':
           description: 请求参数错误
         '401':
@@ -345,12 +352,10 @@ paths:
         **移动规则：**
         - 只能移动自己的文件/文件夹
         - 目标文件夹必须存在（除非移动到根目录）
-        - 不能将文件夹移动到自己的子文件夹（避免循环）
         - 移动文件夹时，其子项的层级关系保持不变
         
         **注意事项：**
         - parent_id = 0 表示移动到根目录
-        - 不能将文件夹移动到自己或自己的子文件夹
         - 移动操作会立即生效
       operationId: UserFileMoveHandler
       security:
@@ -367,9 +372,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserFileMoveResponse'
+                $ref: '#/components/schemas/ApiResponseUserFileMoveResponse'
         '400':
-          description: 请求参数错误（如循环移动等）
+          description: 请求参数错误
         '401':
           description: 未授权或 token 无效
         '403':
@@ -396,71 +401,161 @@ components:
         1. 调用登录接口 `/api/users/login`
         2. 调用注册接口 `/api/users/register`
   schemas:
+    ApiResponseUploadFileResponse:
+      type: object
+      description: 通用响应包裹
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 0
+        msg:
+          type: string
+          example: "ok"
+        data:
+          $ref: '#/components/schemas/UploadFileResponse'
+      required: [code, msg, data]
+      nullable: false
+
+    ApiResponseDownloadURLResponse:
+      type: object
+      description: 通用响应包裹
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 0
+        msg:
+          type: string
+          example: "ok"
+        data:
+          $ref: '#/components/schemas/DownloadURLResponse'
+      required: [code, msg, data]
+      nullable: false
+
+    ApiResponseUserFileListResponse:
+      type: object
+      description: 通用响应包裹
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 0
+        msg:
+          type: string
+          example: "ok"
+        data:
+          $ref: '#/components/schemas/UserFileListResponse'
+      required: [code, msg, data]
+      nullable: false
+
+    ApiResponseUserFileNameUpdateResponse:
+      type: object
+      description: 通用响应包裹
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 0
+        msg:
+          type: string
+          example: "ok"
+        data:
+          $ref: '#/components/schemas/UserFileNameUpdateResponse'
+      required: [code, msg, data]
+      nullable: false
+
+    ApiResponseUserFolderCreateResponse:
+      type: object
+      description: 通用响应包裹
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 0
+        msg:
+          type: string
+          example: "ok"
+        data:
+          $ref: '#/components/schemas/UserFolderCreateResponse'
+      required: [code, msg, data]
+      nullable: false
+
+    ApiResponseUserFolderDeleteResponse:
+      type: object
+      description: 通用响应包裹
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 0
+        msg:
+          type: string
+          example: "ok"
+        data:
+          $ref: '#/components/schemas/UserFolderDeleteResponse'
+      required: [code, msg, data]
+      nullable: false
+
+    ApiResponseUserFileMoveResponse:
+      type: object
+      description: 通用响应包裹
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 0
+        msg:
+          type: string
+          example: "ok"
+        data:
+          $ref: '#/components/schemas/UserFileMoveResponse'
+      required: [code, msg, data]
+      nullable: false
+
     UploadFileResponse:
       type: object
-      description: 文件上传响应结果
+      description: 上传任务入队响应（异步处理）
       properties:
-        identity:
+        message:
           type: string
-          description: 文件唯一标识
-          example: "file_identity_abc123"
-        name:
-          type: string
-          description: 文件名称
-          example: "document.pdf"
-        ext:
-          type: string
-          description: 文件扩展名
-          example: ".pdf"
-      required: [identity, name, ext]
+          description: 提示信息
+          example: "上传任务已入队"
+      required: [message]
       nullable: false
     
-    UserRepositoryRequest:
+    DownloadURLRequest:
       type: object
-      description: 用户文件仓库创建请求
+      description: 下载链接请求
       properties:
-        identity:
-          type: string
-          description: |
-            用户身份标识（从 JWT token 中获取，可选）
-            如果不提供，系统会自动从 token 中解析用户身份
-          example: "user_identity_xyz789"
-        parent_id:
-          type: integer
-          format: int64
-          description: |
-            父文件夹 ID（用于建立文件夹层级关系）
-            - 0 或不传：表示根目录
-            - 其他值：表示放在指定文件夹下
-          example: 0
         repository_identity:
           type: string
-          description: |
-            文件仓库标识（关联到 repository_pool 表）
-            通常是上传文件接口返回的 identity
+          description: 文件仓库标识（repository_pool.identity）
           example: "file_identity_abc123"
-        name:
-          type: string
+        expires:
+          type: integer
+          format: int32
           description: |
-            文件或文件夹名称
-            可以与原始文件名不同（支持重命名）
-          example: "我的文档.pdf"
-        ext:
-          type: string
-          description: 文件扩展名（包含点号）
-          example: ".pdf"
-      required: [repository_identity, name]
+            过期时间（秒）
+            - <=0 使用默认 1 小时
+            - 最大 7 天
+          example: 3600
+      required: [repository_identity]
     
-    UserRepositoryResponse:
+    DownloadURLResponse:
       type: object
-      description: 用户文件仓库创建响应
+      description: 下载链接响应
       properties:
-        identity:
+        url:
           type: string
-          description: 用户文件仓库记录的唯一标识
-          example: "user_repo_identity_def456"
-      required: [identity]
-      nullable: false
+          description: 带签名的下载链接
+          example: "https://oss-example.aliyuncs.com/xxx?signature=..."
+        expires:
+          type: integer
+          format: int32
+          description: 链接有效期（秒）
+          example: 3600
+      required: [url, expires]
     
     UserFileListRequest:
       type: object

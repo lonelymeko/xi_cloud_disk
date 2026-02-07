@@ -164,6 +164,7 @@ type UserFile {
 	Ext                string `json:"ext"`
 	Size               int64  `json:"size"`
 	RepositoryIdentity string `json:"repository_identity"`
+	UpdatedAt          string `json:"updated_at"`
 }
 
 type UserFileNameUpdateRequest {
@@ -179,6 +180,7 @@ type UserFolderCreateRequest {
 }
 
 type UserFolderCreateResponse {
+	Id       int64  `json:"id"`
 	Identity string `json:"identity"`
 }
 

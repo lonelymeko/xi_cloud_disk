@@ -20,6 +20,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// testEnv 测试环境依赖集合。
 type testEnv struct {
 	ctx context.Context
 	svc *svc.ServiceContext
@@ -27,6 +28,7 @@ type testEnv struct {
 	eng *xorm.Engine
 }
 
+// newTestEnv 创建测试环境。
 func newTestEnv(t *testing.T) *testEnv {
 	eng, err := xorm.NewEngine("sqlite", ":memory:")
 	if err != nil {
@@ -55,15 +57,18 @@ func newTestEnv(t *testing.T) *testEnv {
 	return &testEnv{ctx: ctx, svc: svcCtx, rdb: rdb, eng: eng}
 }
 
+// fakeRedisClient Redis 客户端测试替身。
 type fakeRedisClient struct {
 	mu   sync.Mutex
 	data map[string]string
 }
 
+// newFakeRedisClient 创建 Redis 测试替身。
 func newFakeRedisClient() *fakeRedisClient {
 	return &fakeRedisClient{data: map[string]string{}}
 }
 
+// Get 获取键值。
 func (f *fakeRedisClient) Get(ctx context.Context, key string) *redis.StringCmd {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -74,6 +79,7 @@ func (f *fakeRedisClient) Get(ctx context.Context, key string) *redis.StringCmd 
 	return redis.NewStringResult(val, nil)
 }
 
+// Set 设置键值。
 func (f *fakeRedisClient) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd {
 	f.mu.Lock()
 	f.data[key] = fmt.Sprint(value)
@@ -81,6 +87,18 @@ func (f *fakeRedisClient) Set(ctx context.Context, key string, value interface{}
 	return redis.NewStatusResult("OK", nil)
 }
 
+// SetNX 设置键值（不存在时）。
+func (f *fakeRedisClient) SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.BoolCmd {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if _, ok := f.data[key]; ok {
+		return redis.NewBoolResult(false, nil)
+	}
+	f.data[key] = fmt.Sprint(value)
+	return redis.NewBoolResult(true, nil)
+}
+
+// Del 删除键值。
 func (f *fakeRedisClient) Del(ctx context.Context, keys ...string) *redis.IntCmd {
 	f.mu.Lock()
 	var count int64
@@ -94,10 +112,12 @@ func (f *fakeRedisClient) Del(ctx context.Context, keys ...string) *redis.IntCmd
 	return redis.NewIntResult(count, nil)
 }
 
+// Ping 返回心跳结果。
 func (f *fakeRedisClient) Ping(ctx context.Context) *redis.StatusCmd {
 	return redis.NewStatusResult("PONG", nil)
 }
 
+// TestLogin 验证登录逻辑。
 func TestLogin(t *testing.T) {
 	env := newTestEnv(t)
 	user := &models.UserBasic{
@@ -145,6 +165,7 @@ func TestLogin(t *testing.T) {
 	}
 }
 
+// TestRegister 验证注册逻辑。
 func TestRegister(t *testing.T) {
 	env := newTestEnv(t)
 	if err := env.rdb.Set(env.ctx, "verification_code:alice@example.com", "123456", time.Minute).Err(); err != nil {
@@ -175,6 +196,7 @@ func TestRegister(t *testing.T) {
 	}
 }
 
+// TestChangePassword 验证修改密码逻辑。
 func TestChangePassword(t *testing.T) {
 	env := newTestEnv(t)
 	user := &models.UserBasic{Identity: "u-1", Name: "alice", Password: utils.Md5("oldpass1")}
@@ -205,6 +227,7 @@ func TestChangePassword(t *testing.T) {
 	}
 }
 
+// TestResetPassword 验证重置密码逻辑。
 func TestResetPassword(t *testing.T) {
 	env := newTestEnv(t)
 	user := &models.UserBasic{Identity: "u-1", Name: "alice", Email: "alice@example.com", Password: utils.Md5("oldpass1")}
@@ -243,6 +266,7 @@ func TestResetPassword(t *testing.T) {
 	}
 }
 
+// TestSendVerificationCode 验证发送验证码逻辑。
 func TestSendVerificationCode(t *testing.T) {
 	env := newTestEnv(t)
 	logic := NewSendVerificationCodeLogic(env.ctx, env.svc)
@@ -262,6 +286,7 @@ func TestSendVerificationCode(t *testing.T) {
 	}
 }
 
+// TestUserDetail 验证用户详情逻辑。
 func TestUserDetail(t *testing.T) {
 	env := newTestEnv(t)
 	user := &models.UserBasic{Identity: "uid-1", Name: "alice", Email: "alice@example.com"}
@@ -278,27 +303,26 @@ func TestUserDetail(t *testing.T) {
 	}
 }
 
+// TestUploadFile 验证上传文件逻辑。
 func TestUploadFile(t *testing.T) {
 	env := newTestEnv(t)
 	logic := NewUploadFileLogic(env.ctx, env.svc)
-	resp, err := logic.UploadFile(&types.UploadFileRequest{Name: "a.txt", Hash: "h", Ext: ".txt", Size: 10, Path: "/p", ParentId: 0}, true, "")
+	resp, err := logic.UploadFile(&types.UploadFileRequest{Name: "a.txt", Hash: "h", Ext: ".txt", Size: 10, ObjectKey: "k", ParentId: 0}, false, "", "/tmp/a.txt", "h")
+	if env.svc.RabbitMQConn == nil {
+		if err == nil {
+			t.Fatal("expected error")
+		}
+		return
+	}
 	if err != nil {
 		t.Fatalf("upload file failed: %v", err)
 	}
 	if resp.Message == "" {
 		t.Fatalf("unexpected response: %+v", resp)
 	}
-
-	data := new(models.RepositoryPool)
-	_, err = env.eng.Where("hash = ?", "h").Get(data)
-	if err != nil {
-		t.Fatalf("query repo failed: %v", err)
-	}
-	if data.Identity == "" {
-		t.Fatal("repo not inserted")
-	}
 }
 
+// TestUserFolderCreate 验证创建文件夹逻辑。
 func TestUserFolderCreate(t *testing.T) {
 	env := newTestEnv(t)
 	logic := NewUserFolderCreateLogic(env.ctx, env.svc)
@@ -316,9 +340,10 @@ func TestUserFolderCreate(t *testing.T) {
 	}
 }
 
+// TestUserFileList 验证用户文件列表逻辑。
 func TestUserFileList(t *testing.T) {
 	env := newTestEnv(t)
-	repo := &models.RepositoryPool{Identity: "r1", Name: "file", Ext: ".txt", Size: 12, Path: "/p"}
+	repo := &models.RepositoryPool{Identity: "r1", Name: "file", Ext: ".txt", Size: 12, ObjectKey: "k"}
 	if _, err := env.eng.InsertOne(repo); err != nil {
 		t.Fatalf("insert repo failed: %v", err)
 	}
@@ -337,6 +362,7 @@ func TestUserFileList(t *testing.T) {
 	}
 }
 
+// TestUserFileMove 验证用户文件移动逻辑。
 func TestUserFileMove(t *testing.T) {
 	env := newTestEnv(t)
 	parent := &models.UserRepository{Identity: "p1", UserIdentity: "u-1", ParentId: 0, Name: "dst"}
@@ -364,6 +390,7 @@ func TestUserFileMove(t *testing.T) {
 	}
 }
 
+// TestUserFileNameUpdate 验证用户文件名更新逻辑。
 func TestUserFileNameUpdate(t *testing.T) {
 	env := newTestEnv(t)
 	file := &models.UserRepository{Identity: "f1", UserIdentity: "u-1", ParentId: 0, Name: "old"}
@@ -385,11 +412,16 @@ func TestUserFileNameUpdate(t *testing.T) {
 	}
 }
 
+// TestSaveResource 验证保存资源逻辑。
 func TestSaveResource(t *testing.T) {
 	env := newTestEnv(t)
 	base := &models.UserRepository{Identity: "r1", UserIdentity: "u-1", ParentId: 0, RepositoryIdentity: "r1", Ext: ".txt", Name: "src"}
 	if _, err := env.eng.InsertOne(base); err != nil {
 		t.Fatalf("insert base failed: %v", err)
+	}
+	repo := &models.RepositoryPool{Identity: "r1", Name: "src", Ext: ".txt", Size: 12, ObjectKey: "k"}
+	if _, err := env.eng.InsertOne(repo); err != nil {
+		t.Fatalf("insert repo failed: %v", err)
 	}
 	logic := NewSaveResourceLogic(env.ctx, env.svc)
 	resp, err := logic.SaveResource(&types.SaveResourceRequest{ParentId: 0, RepositoryIdentity: "r1", Name: "dst"})
@@ -409,6 +441,7 @@ func TestSaveResource(t *testing.T) {
 	}
 }
 
+// TestCreateShareRecord 验证创建分享记录逻辑。
 func TestCreateShareRecord(t *testing.T) {
 	env := newTestEnv(t)
 	logic := NewCreateShareRecordLogic(env.ctx, env.svc)
@@ -421,13 +454,14 @@ func TestCreateShareRecord(t *testing.T) {
 	}
 }
 
+// TestGetShareRecord 验证获取分享记录逻辑。
 func TestGetShareRecord(t *testing.T) {
 	env := newTestEnv(t)
 	share := &models.ShareBasic{Identity: "s1", UserIdentity: "u-1", RepositoryIdentity: "r1", ExpiredTime: 10}
 	if _, err := env.eng.InsertOne(share); err != nil {
 		t.Fatalf("insert share failed: %v", err)
 	}
-	repo := &models.RepositoryPool{Identity: "r1", Name: "file", Ext: ".txt", Size: 12, Path: "/p"}
+	repo := &models.RepositoryPool{Identity: "r1", Name: "file", Ext: ".txt", Size: 12, ObjectKey: "k"}
 	if _, err := env.eng.InsertOne(repo); err != nil {
 		t.Fatalf("insert repo failed: %v", err)
 	}
@@ -446,6 +480,7 @@ func TestGetShareRecord(t *testing.T) {
 	}
 }
 
+// TestUserFolderDelete 验证删除文件夹逻辑。
 func TestUserFolderDelete(t *testing.T) {
 	env := newTestEnv(t)
 	root := &models.UserRepository{Identity: "root", UserIdentity: "u-1", ParentId: 0, Name: "root"}

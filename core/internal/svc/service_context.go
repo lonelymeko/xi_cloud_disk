@@ -1,4 +1,4 @@
-// Code scaffolded by goctl. Safe to edit.
+// goctl 生成代码，可安全编辑。
 // goctl 1.9.2
 
 package svc
@@ -13,10 +13,12 @@ import (
 
 	"github.com/rabbitmq/amqp091-go"
 	"github.com/redis/go-redis/v9"
+	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/rest"
 	"xorm.io/xorm"
 )
 
+// ServiceContext 服务上下文。
 type ServiceContext struct {
 	Config             config.Config
 	DBEngine           *xorm.Engine
@@ -26,22 +28,27 @@ type ServiceContext struct {
 	FileAuthMiddleware rest.Middleware
 }
 
+// RedisClient Redis 客户端最小接口。
 type RedisClient interface {
 	Get(ctx context.Context, key string) *redis.StringCmd
 	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd
+	SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.BoolCmd
 	Del(ctx context.Context, keys ...string) *redis.IntCmd
 	Ping(ctx context.Context) *redis.StatusCmd
 }
 
+// serviceDeps 依赖注入集合。
 type serviceDeps struct {
 	initDB             func(string) *xorm.Engine
 	initRedis          func(string, string, int) RedisClient
 	newFileAuth        func(string, int64) rest.Middleware
 	ensureSchema       func(*xorm.Engine) error
+	ensureTablesHealth func(*xorm.Engine) error
 	ensureDefaultAdmin func(*xorm.Engine) error
 	initRabbitMQ       func(string, int, string, string, string) (*amqp091.Connection, *amqp091.Channel)
 }
 
+// deps 默认依赖实现。
 var deps = serviceDeps{
 	initDB:       global.Init,
 	initRedis:    func(addr, password string, db int) RedisClient { return global.InitRedis(addr, password, db) },
@@ -50,14 +57,23 @@ var deps = serviceDeps{
 		return middleware.NewFileAuthMiddleware(secret, expire).Handle
 	},
 	ensureSchema:       utils.EnsureSchema,
+	ensureTablesHealth: utils.TablesHealthy,
 	ensureDefaultAdmin: utils.EnsureDefaultAdmin,
 }
 
+// NewServiceContext 创建服务上下文。
 func NewServiceContext(c config.Config) *ServiceContext {
 	eng := deps.initDB(c.MySQL.DataSource)
 	_ = deps.ensureSchema(eng)
+	if err := deps.ensureTablesHealth(eng); err != nil {
+		logx.Errorf("tables health check failed: %v", err)
+	}
 	_ = deps.ensureDefaultAdmin(eng)
-	rmqConn, rmqCh := deps.initRabbitMQ(c.RabbitMQ.Host, c.RabbitMQ.Port, c.RabbitMQ.Username, c.RabbitMQ.Password, c.RabbitMQ.Vhost)
+	var rmqConn *amqp091.Connection
+	var rmqCh *amqp091.Channel
+	if c.RabbitMQ.Host != "" && c.RabbitMQ.Port != 0 && c.RabbitMQ.Username != "" {
+		rmqConn, rmqCh = deps.initRabbitMQ(c.RabbitMQ.Host, c.RabbitMQ.Port, c.RabbitMQ.Username, c.RabbitMQ.Password, c.RabbitMQ.Vhost)
+	}
 	// //启动消费者
 	// consumer := mq.NewConsumer(rmqConn)
 	// consumer.Start()
@@ -71,6 +87,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 }
 
+// NewServiceContextWithDeps 使用自定义依赖创建服务上下文。
 func NewServiceContextWithDeps(c config.Config, db *xorm.Engine, redis RedisClient, fileAuth rest.Middleware) *ServiceContext {
 	return &ServiceContext{
 		Config:             c,

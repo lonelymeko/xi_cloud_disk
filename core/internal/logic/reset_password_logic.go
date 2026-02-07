@@ -13,12 +13,14 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+// ResetPasswordLogic 重置密码逻辑。
 type ResetPasswordLogic struct {
 	logx.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
+// NewResetPasswordLogic 创建重置密码逻辑。
 func NewResetPasswordLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ResetPasswordLogic {
 	return &ResetPasswordLogic{
 		Logger: logx.WithContext(ctx),
@@ -27,6 +29,7 @@ func NewResetPasswordLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Res
 	}
 }
 
+// ResetPassword 重置密码。
 func (l *ResetPasswordLogic) ResetPassword(req *types.ResetPasswordRequest) (resp *types.ResetPasswordResponse, err error) {
 	email, code, newPassword, err := normalizeResetPasswordInput(req)
 	if err != nil {
@@ -72,6 +75,7 @@ func (l *ResetPasswordLogic) ResetPassword(req *types.ResetPasswordRequest) (res
 	return &types.ResetPasswordResponse{Message: "密码重置成功"}, nil
 }
 
+// normalizeResetPasswordInput 标准化并校验重置密码参数。
 func normalizeResetPasswordInput(req *types.ResetPasswordRequest) (string, string, string, error) {
 	email := strings.TrimSpace(req.Email)
 	code := strings.TrimSpace(req.Code)
@@ -85,6 +89,7 @@ func normalizeResetPasswordInput(req *types.ResetPasswordRequest) (string, strin
 	return email, code, newPassword, nil
 }
 
+// isResetPasswordStrong 校验重置密码强度。
 func isResetPasswordStrong(password string) bool {
 	if len(password) < 8 {
 		return false

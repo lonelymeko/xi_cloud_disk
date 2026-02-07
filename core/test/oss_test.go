@@ -20,6 +20,7 @@ import (
 	"github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss/credentials"
 )
 
+// TestUploadToOSS 验证上传函数调用链。
 func TestUploadToOSS(t *testing.T) {
 	oldLoad := utils.OSSLoadEnv()
 	oldKeyGen := utils.OSSKeyGen()
@@ -29,12 +30,15 @@ func TestUploadToOSS(t *testing.T) {
 
 	common.OSSRegion = "r1"
 	common.OSSBucketName = "b1"
+	setEnv(t, "OSS_REGION", "r1")
+	setEnv(t, "OSS_BUCKET_NAME", "b1")
 	utils.SetOSSLoadEnv(func() error { return nil })
 	utils.SetOSSKeyGen(func(originalFilename string) string { return "k.txt" })
 	called := false
+	expectedRegion := utils.OSSRegionValue()
 	utils.SetOSSUpload(func(region, bucket, key string, body io.Reader) (string, error) {
 		called = true
-		if region != common.OSSRegion || bucket != common.OSSBucketName || key != "k.txt" {
+		if region != expectedRegion || bucket != common.OSSBucketName || key != "k.txt" {
 			return "", io.EOF
 		}
 		data, err := io.ReadAll(body)
@@ -55,22 +59,25 @@ func TestUploadToOSS(t *testing.T) {
 		common.OSSBucketName = oldBucket
 	})
 
-	url, err := utils.UploadToOSS(bytes.NewBufferString("data"), "a.txt")
+	objectKey, err := utils.UploadToOSS(bytes.NewBufferString("data"), "a.txt")
 	if err != nil {
 		t.Fatalf("upload failed: %v", err)
 	}
 	if !called {
 		t.Fatal("upload not called")
 	}
-	if url != "https://b1.r1.aliyuncs.com/k.txt" {
-		t.Fatalf("unexpected url: %s", url)
+	if objectKey != "k.txt" {
+		t.Fatalf("unexpected object key: %s", objectKey)
 	}
 }
 
+// TestUploadToOSS_ErrorWrap 验证错误包装行为。
 func TestUploadToOSS_ErrorWrap(t *testing.T) {
 	oldLoad := utils.OSSLoadEnv()
 	oldKeyGen := utils.OSSKeyGen()
 	oldUpload := utils.OSSUpload()
+	setEnv(t, "OSS_REGION", "r1")
+	setEnv(t, "OSS_BUCKET_NAME", "b1")
 
 	utils.SetOSSLoadEnv(func() error { return nil })
 	utils.SetOSSKeyGen(func(originalFilename string) string { return "k.txt" })
@@ -94,6 +101,7 @@ func TestUploadToOSS_ErrorWrap(t *testing.T) {
 	}
 }
 
+// TestOSSHost 验证 OSS 域名拼接逻辑。
 func TestOSSHost(t *testing.T) {
 	oldBucket := common.OSSBucketName
 	oldRegion := common.OSSRegion
@@ -121,11 +129,17 @@ func TestOSSHost(t *testing.T) {
 			name:   "bucket region env",
 			bucket: "b",
 			region: "r",
-			expect: "b.r.aliyuncs.com:443",
+			expect: "b.oss-r.aliyuncs.com:443",
+		},
+		{
+			name:   "bucket region env normalize",
+			bucket: "b",
+			region: "oss-cn-hangzhou",
+			expect: "b.oss-cn-hangzhou.aliyuncs.com:443",
 		},
 		{
 			name:   "default common",
-			expect: fmt.Sprintf("%s.%s.aliyuncs.com:443", common.OSSBucketName, common.OSSRegion),
+			expect: fmt.Sprintf("%s.oss-%s.aliyuncs.com:443", common.OSSBucketName, common.OSSRegion),
 		},
 	}
 
@@ -141,6 +155,7 @@ func TestOSSHost(t *testing.T) {
 	}
 }
 
+// TestOSSConnectivity 验证连通性检查成功场景。
 func TestOSSConnectivity(t *testing.T) {
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -161,6 +176,7 @@ func TestOSSConnectivity(t *testing.T) {
 	}
 }
 
+// TestOSSConnectivity_Failure 验证连通性检查失败场景。
 func TestOSSConnectivity_Failure(t *testing.T) {
 	setEnv(t, "OSS_HOST", "127.0.0.1:1")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -170,6 +186,7 @@ func TestOSSConnectivity_Failure(t *testing.T) {
 	}
 }
 
+// TestOSSConnectivity_Timeout 验证连通性检查超时场景。
 func TestOSSConnectivity_Timeout(t *testing.T) {
 	setEnv(t, "OSS_HOST", "10.255.255.1:81")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond)
@@ -180,13 +197,21 @@ func TestOSSConnectivity_Timeout(t *testing.T) {
 	}
 }
 
+// TestOSSUploadDownloadDelete_Integration 验证 OSS 上传下载删除流程。
 func TestOSSUploadDownloadDelete_Integration(t *testing.T) {
 	accessKey := os.Getenv("OSS_ACCESS_KEY_ID")
 	accessSecret := os.Getenv("OSS_ACCESS_KEY_SECRET")
-	region := os.Getenv("OSS_REGION")
-	bucket := os.Getenv("OSS_BUCKET_NAME")
+	region := utils.OSSRegionValue()
+	bucket := utils.OSSBucketNameValue()
 	if accessKey == "" || accessSecret == "" || region == "" || bucket == "" {
 		t.Skip("oss env not set")
+	}
+	setEnv(t, "OSS_REGION", region)
+	setEnv(t, "OSS_HOST", "")
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := utils.OSSConnectivity(ctx); err != nil {
+		t.Skipf("oss not reachable: %v", err)
 	}
 
 	oldRegion := common.OSSRegion
@@ -220,12 +245,12 @@ func TestOSSUploadDownloadDelete_Integration(t *testing.T) {
 		t.Fatalf("read file failed: %v", err)
 	}
 
-	url, err := utils.UploadToOSS(file, "test.txt")
+	objectKey, err := utils.UploadToOSS(file, "test.txt")
 	if err != nil {
 		t.Fatalf("upload failed: %v", err)
 	}
-	if url == "" {
-		t.Fatal("empty url")
+	if objectKey == "" {
+		t.Fatal("empty object key")
 	}
 
 	cfg := oss.LoadDefaultConfig().
@@ -259,6 +284,7 @@ func TestOSSUploadDownloadDelete_Integration(t *testing.T) {
 	}
 }
 
+// setEnv 设置环境变量并在测试结束时恢复。
 func setEnv(t *testing.T, key, value string) {
 	old, ok := os.LookupEnv(key)
 	if value == "" {
@@ -275,6 +301,7 @@ func setEnv(t *testing.T, key, value string) {
 	})
 }
 
+// testFilePath 获取测试文件路径。
 func testFilePath(t *testing.T) (string, string) {
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {

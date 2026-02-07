@@ -1,7 +1,13 @@
 openapi: 3.0.3
 info:
   title: Core API - 用户中心服务
-  description: 包含用户登录、注册核心接口
+  description: |
+    包含用户登录、注册核心接口。
+    
+    响应包裹：所有接口统一返回结构 {code,msg,data}
+    - code: 数字状态码（0 为成功）
+    - msg: 文本消息（错误信息或提示）
+    - data: 实际业务数据（各接口定义的响应体）
   version: 1.0.0
 servers:
   - url: http://127.0.0.1:8888/api/users
@@ -24,7 +30,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LoginResponse'
+                $ref: '#/components/schemas/ApiResponseLoginResponse'
         '400':
           description: 请求参数错误
         '401':
@@ -46,7 +52,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RegisterResponse'
+                $ref: '#/components/schemas/ApiResponseRegisterResponse'
         '400':
           description: 请求参数错误（如用户名已存在、邮箱格式非法）
   /password/update:
@@ -66,7 +72,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ChangePasswordResponse'
+                $ref: '#/components/schemas/ApiResponseChangePasswordResponse'
         '400':
           description: 请求参数错误或旧密码错误
         '401':
@@ -88,7 +94,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResetPasswordResponse'
+                $ref: '#/components/schemas/ApiResponseResetPasswordResponse'
         '400':
           description: 请求参数错误或验证码错误
   /detail:
@@ -108,7 +114,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserDetailResponse'
+                $ref: '#/components/schemas/ApiResponseUserDetailResponse'
         '400':
           description: 请求参数错误
         '401':
@@ -130,11 +136,106 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SendVerificationCodeResponse'
+                $ref: '#/components/schemas/ApiResponseSendVerificationCodeResponse'
         '400':
           description: 请求参数错误
 components:
   schemas:
+    ApiResponseLoginResponse:
+      type: object
+      description: 通用响应包裹
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 0
+        msg:
+          type: string
+          example: "ok"
+        data:
+          $ref: '#/components/schemas/LoginResponse'
+      required: [code, msg, data]
+      nullable: false
+
+    ApiResponseRegisterResponse:
+      type: object
+      description: 通用响应包裹
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 0
+        msg:
+          type: string
+          example: "ok"
+        data:
+          $ref: '#/components/schemas/RegisterResponse'
+      required: [code, msg, data]
+      nullable: false
+
+    ApiResponseChangePasswordResponse:
+      type: object
+      description: 通用响应包裹
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 0
+        msg:
+          type: string
+          example: "ok"
+        data:
+          $ref: '#/components/schemas/ChangePasswordResponse'
+      required: [code, msg, data]
+      nullable: false
+
+    ApiResponseResetPasswordResponse:
+      type: object
+      description: 通用响应包裹
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 0
+        msg:
+          type: string
+          example: "ok"
+        data:
+          $ref: '#/components/schemas/ResetPasswordResponse'
+      required: [code, msg, data]
+      nullable: false
+
+    ApiResponseUserDetailResponse:
+      type: object
+      description: 通用响应包裹
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 0
+        msg:
+          type: string
+          example: "ok"
+        data:
+          $ref: '#/components/schemas/UserDetailResponse'
+      required: [code, msg, data]
+      nullable: false
+
+    ApiResponseSendVerificationCodeResponse:
+      type: object
+      description: 通用响应包裹
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 0
+        msg:
+          type: string
+          example: "ok"
+        data:
+          $ref: '#/components/schemas/SendVerificationCodeResponse'
+      required: [code, msg, data]
+      nullable: false
     LoginRequest:
       type: object
       description: 用户登录请求参数

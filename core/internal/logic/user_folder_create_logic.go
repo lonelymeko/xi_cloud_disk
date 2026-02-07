@@ -1,4 +1,4 @@
-// Code scaffolded by goctl. Safe to edit.
+// goctl 生成代码，可安全编辑。
 // goctl 1.9.2
 
 package logic
@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 
+	"cloud_disk/core/common"
 	"cloud_disk/core/internal/svc"
 	"cloud_disk/core/internal/types"
 	"cloud_disk/core/models"
@@ -15,12 +16,14 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+// UserFolderCreateLogic 用户文件夹创建逻辑。
 type UserFolderCreateLogic struct {
 	logx.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
+// NewUserFolderCreateLogic 创建用户文件夹创建逻辑。
 func NewUserFolderCreateLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UserFolderCreateLogic {
 	return &UserFolderCreateLogic{
 		Logger: logx.WithContext(ctx),
@@ -29,6 +32,7 @@ func NewUserFolderCreateLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 	}
 }
 
+// UserFolderCreate 创建用户文件夹。
 func (l *UserFolderCreateLogic) UserFolderCreate(req *types.UserFolderCreateRequest) (resp *types.UserFolderCreateResponse, err error) {
 	// 获取用户身份
 	userIdentity, ok := l.ctx.Value("user_identity").(string)
@@ -49,11 +53,18 @@ func (l *UserFolderCreateLogic) UserFolderCreate(req *types.UserFolderCreateRequ
 		UserIdentity: userIdentity,
 		ParentId:     req.ParentId,
 		Name:         req.Name,
+		Status:       common.StatusActive,
 	}
 	_, err = l.svcCtx.DBEngine.Table("user_repository").Insert(data)
 	if err != nil {
 		return nil, err
 	}
+	if data.Id == 0 {
+		_, err = l.svcCtx.DBEngine.Table("user_repository").Where("identity = ?", data.Identity).Get(data)
+		if err != nil {
+			return nil, err
+		}
+	}
 
-	return &types.UserFolderCreateResponse{}, nil
+	return &types.UserFolderCreateResponse{Id: int64(data.Id), Identity: data.Identity}, nil
 }

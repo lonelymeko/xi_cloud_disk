@@ -1,4 +1,4 @@
-// Code scaffolded by goctl. Safe to edit.
+// goctl 生成代码，可安全编辑。
 // goctl 1.9.2
 
 package handler
@@ -20,6 +20,7 @@ import (
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
 
+// UploadFileHandler 文件上传处理入口。
 func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.UploadFileRequest
@@ -33,6 +34,14 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 		defer file.Close()
+		if fileHeader.Size > 0 && fileHeader.Size > common.MaxUploadSize {
+			httpx.WriteJson(w, http.StatusRequestEntityTooLarge, common.Body{
+				Code: uint32(http.StatusRequestEntityTooLarge),
+				Msg:  "文件过大，超过10GB限制",
+				Data: nil,
+			})
+			return
+		}
 
 		// 从 fileHeader 获取文件名和大小（如果 req 中没有提供）
 		if req.Name == "" {
@@ -67,6 +76,21 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		if _, copyErr := io.Copy(tempFile, file); copyErr != nil {
 			httpx.ErrorCtx(r.Context(), w, copyErr)
 			return
+		}
+		if fileHeader.Size <= 0 {
+			fileInfo, statErr := tempFile.Stat()
+			if statErr != nil {
+				httpx.ErrorCtx(r.Context(), w, statErr)
+				return
+			}
+			if fileInfo.Size() > common.MaxUploadSize {
+				httpx.WriteJson(w, http.StatusRequestEntityTooLarge, common.Body{
+					Code: uint32(http.StatusRequestEntityTooLarge),
+					Msg:  "文件过大，超过10GB限制",
+					Data: nil,
+				})
+				return
+			}
 		}
 
 		// 从临时文件计算 hash
@@ -109,14 +133,6 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		has, err := svcCtx.DBEngine.Where("hash=?", hash).Get(rp)
 		if err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
-			return
-		}
-
-		// 如果文件信息存在：
-		if has {
-			l := logic.NewUploadFileLogic(r.Context(), svcCtx)
-			resp, err := l.UploadFile(&req, has, rp.Identity, tempFile.Name(), hash)
-			common.Response(r, w, resp, err)
 			return
 		}
 		// 不存在

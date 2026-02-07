@@ -8,6 +8,7 @@ import (
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
 
+// HealthHandler 健康检查处理入口。
 func HealthHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodHead {

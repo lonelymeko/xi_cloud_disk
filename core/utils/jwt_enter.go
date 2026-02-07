@@ -7,20 +7,20 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
-// JwtPayLoad JWT Payload 结构
+// JwtPayLoad JWT Payload 结构。
 type JwtPayLoad struct {
 	Id       int
 	Identity string
 	Name     string
 }
 
-// CustomClaims 自定义JWT声明
+// CustomClaims 自定义 JWT 声明。
 type CustomClaims struct {
 	jwt.RegisteredClaims
 	JwtPayLoad
 }
 
-// GenToken 生成JWT Token
+// GenToken 生成 JWT Token。
 func GenToken(user JwtPayLoad, accessSecret string, expires int64) (string, error) {
 	claims := CustomClaims{
 		JwtPayLoad: user,
@@ -33,7 +33,7 @@ func GenToken(user JwtPayLoad, accessSecret string, expires int64) (string, erro
 	return token.SignedString([]byte(accessSecret))
 }
 
-// ParseToken 解析JWT Token
+// ParseToken 解析 JWT Token。
 func ParseToken(tokenStr string, accessSecret string, expires int64) (*CustomClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenStr, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return []byte(accessSecret), nil

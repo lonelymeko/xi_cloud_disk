@@ -8,11 +8,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rabbitmq/amqp091-go"
 	"github.com/redis/go-redis/v9"
 	"github.com/zeromicro/go-zero/rest"
 	"xorm.io/xorm"
 )
 
+// TestNewServiceContextWithDeps 验证使用自定义依赖构建上下文。
 func TestNewServiceContextWithDeps(t *testing.T) {
 	cfg := config.Config{}
 	ctx := NewServiceContextWithDeps(cfg, nil, nil, func(next http.HandlerFunc) http.HandlerFunc {
@@ -26,6 +28,7 @@ func TestNewServiceContextWithDeps(t *testing.T) {
 	}
 }
 
+// TestNewServiceContextUsesDeps 验证默认依赖被正确调用。
 func TestNewServiceContextUsesDeps(t *testing.T) {
 	oldDeps := deps
 	t.Cleanup(func() { deps = oldDeps })
@@ -37,12 +40,19 @@ func TestNewServiceContextUsesDeps(t *testing.T) {
 	cfg.Redis.DB = 2
 	cfg.Auth.AccessSecret = "secret"
 	cfg.Auth.AccessExpire = 3600
+	cfg.RabbitMQ.Host = "host"
+	cfg.RabbitMQ.Port = 5672
+	cfg.RabbitMQ.Username = "user"
+	cfg.RabbitMQ.Password = "pass"
+	cfg.RabbitMQ.Vhost = "/"
 
 	calledInitDB := false
 	calledEnsureSchema := false
+	calledEnsureTablesHealth := false
 	calledEnsureDefaultAdmin := false
 	calledInitRedis := false
 	calledNewFileAuth := false
+	calledInitRabbitMQ := false
 
 	fakeDB := &xorm.Engine{}
 	fakeRedis := &fakeRedisClient{}
@@ -76,12 +86,23 @@ func TestNewServiceContextUsesDeps(t *testing.T) {
 			calledEnsureSchema = true
 			return nil
 		},
+		ensureTablesHealth: func(eng *xorm.Engine) error {
+			if eng != fakeDB {
+				t.Fatal("ensure tables health engine mismatch")
+			}
+			calledEnsureTablesHealth = true
+			return nil
+		},
 		ensureDefaultAdmin: func(eng *xorm.Engine) error {
 			if eng != fakeDB {
 				t.Fatal("ensure admin engine mismatch")
 			}
 			calledEnsureDefaultAdmin = true
 			return nil
+		},
+		initRabbitMQ: func(host string, port int, username, password, vhost string) (*amqp091.Connection, *amqp091.Channel) {
+			calledInitRabbitMQ = true
+			return nil, nil
 		},
 	}
 
@@ -98,11 +119,12 @@ func TestNewServiceContextUsesDeps(t *testing.T) {
 	if ctx.FileAuthMiddleware == nil {
 		t.Fatal("middleware is nil")
 	}
-	if !calledInitDB || !calledEnsureSchema || !calledEnsureDefaultAdmin || !calledInitRedis || !calledNewFileAuth {
+	if !calledInitDB || !calledEnsureSchema || !calledEnsureTablesHealth || !calledEnsureDefaultAdmin || !calledInitRedis || !calledNewFileAuth || !calledInitRabbitMQ {
 		t.Fatal("deps not fully used")
 	}
 }
 
+// fakeRedisClient Redis 客户端测试替身。
 type fakeRedisClient struct{}
 
 func (f *fakeRedisClient) Get(ctx context.Context, key string) *redis.StringCmd {
@@ -110,6 +132,9 @@ func (f *fakeRedisClient) Get(ctx context.Context, key string) *redis.StringCmd 
 }
 func (f *fakeRedisClient) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd {
 	return redis.NewStatusResult("", nil)
+}
+func (f *fakeRedisClient) SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.BoolCmd {
+	return redis.NewBoolResult(true, nil)
 }
 func (f *fakeRedisClient) Del(ctx context.Context, keys ...string) *redis.IntCmd {
 	return redis.NewIntResult(0, nil)

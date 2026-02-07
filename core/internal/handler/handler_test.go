@@ -8,6 +8,7 @@ import (
 	"testing"
 )
 
+// TestHandlersParseError 验证请求解析失败的处理。
 func TestHandlersParseError(t *testing.T) {
 	svcCtx := &svc.ServiceContext{}
 	invalidJSON := "{invalid}"
@@ -45,6 +46,7 @@ func TestHandlersParseError(t *testing.T) {
 	}
 }
 
+// TestUploadFileHandlerMissingFile 验证缺失文件的处理。
 func TestUploadFileHandlerMissingFile(t *testing.T) {
 	svcCtx := &svc.ServiceContext{}
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("{}"))
@@ -56,6 +58,7 @@ func TestUploadFileHandlerMissingFile(t *testing.T) {
 	}
 }
 
+// TestUploadFileHandlerParseError 验证上传请求解析失败的处理。
 func TestUploadFileHandlerParseError(t *testing.T) {
 	svcCtx := &svc.ServiceContext{}
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("{invalid}"))
@@ -67,6 +70,7 @@ func TestUploadFileHandlerParseError(t *testing.T) {
 	}
 }
 
+// TestHealthHandler 验证健康检查处理。
 func TestHealthHandler(t *testing.T) {
 	svcCtx := &svc.ServiceContext{}
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)

@@ -1,4 +1,4 @@
-// Code scaffolded by goctl. Safe to edit.
+// goctl 生成代码，可安全编辑。
 // goctl 1.9.2
 
 package logic
@@ -6,6 +6,7 @@ package logic
 import (
 	"context"
 
+	"cloud_disk/core/common"
 	"cloud_disk/core/internal/svc"
 	"cloud_disk/core/internal/types"
 	"cloud_disk/core/models"
@@ -15,12 +16,14 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+// SaveResourceLogic 保存资源逻辑。
 type SaveResourceLogic struct {
 	logx.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
+// NewSaveResourceLogic 创建保存资源逻辑。
 func NewSaveResourceLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SaveResourceLogic {
 	return &SaveResourceLogic{
 		Logger: logx.WithContext(ctx),
@@ -29,22 +32,22 @@ func NewSaveResourceLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Save
 	}
 }
 
+// SaveResource 保存分享资源。
 func (l *SaveResourceLogic) SaveResource(req *types.SaveResourceRequest) (resp *types.SaveResourceResponse, err error) {
 	userIdentity, ok := l.ctx.Value("user_identity").(string)
 	if !ok {
 		return nil, errors.New("用户身份验证失败")
 	}
 	// 查询该层级是否有同名文件
-	cnt, err := l.svcCtx.DBEngine.Table("user_repository").Where("name = ? AND parent_id = ? AND user_identity = ?", req.Name, req.ParentId, userIdentity).Count(new(models.UserRepository))
+	cnt, err := l.svcCtx.DBEngine.Table("user_repository").Where("name = ? AND parent_id = ? AND user_identity = ? AND (status != ? OR status IS NULL)", req.Name, req.ParentId, userIdentity, common.StatusDeleted).Count(new(models.UserRepository))
 	if err != nil {
 		return nil, err
 	}
 	if cnt > 0 {
 		return nil, errors.New("该目录下已存在同名文件")
 	}
-	rp := new(models.UserRepository)
-	// 查询信息
-	has, err := l.svcCtx.DBEngine.Where("identity = ?", req.RepositoryIdentity, userIdentity).Get(rp)
+	repo := new(models.RepositoryPool)
+	has, err := l.svcCtx.DBEngine.Where("identity = ?", req.RepositoryIdentity).Get(repo)
 	if err != nil {
 		return nil, err
 	}
@@ -56,10 +59,11 @@ func (l *SaveResourceLogic) SaveResource(req *types.SaveResourceRequest) (resp *
 	data := models.UserRepository{
 		Identity:           utils.UUID(),
 		UserIdentity:       userIdentity,
-		ParentId:           rp.ParentId,
-		RepositoryIdentity: rp.RepositoryIdentity,
-		Ext:                rp.Ext,
+		ParentId:           req.ParentId,
+		RepositoryIdentity: repo.Identity,
+		Ext:                repo.Ext,
 		Name:               req.Name,
+		Status:             common.StatusActive,
 	}
 	_, err = l.svcCtx.DBEngine.Insert(&data)
 	if err != nil {
