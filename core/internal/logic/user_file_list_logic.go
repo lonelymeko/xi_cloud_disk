@@ -58,7 +58,7 @@ func (l *UserFileListLogic) UserFileList(req *types.UserFileListRequest) (resp *
 		Where("parent_id = ? AND user_identity = ?", req.Id, userIdentity).
 		Select("user_repository.id as id, user_repository.identity as identity, user_repository.name as name, "+
 			"user_repository.repository_identity as repository_identity, user_repository.ext as ext, "+
-			"repository_pool.size as size").
+			"repository_pool.size as size, user_repository.updated_at as updated_at").
 		Join("LEFT", "repository_pool", "user_repository.repository_identity = repository_pool.identity").
 		Where("user_repository.status != ? OR user_repository.status IS NULL", common.StatusDeleted).
 		// 筛选出「从未被标记删除」或「删除标记被重置为零值」的user_repository数据，即「有效数据」。

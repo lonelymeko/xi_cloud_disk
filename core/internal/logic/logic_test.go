@@ -422,6 +422,10 @@ func TestSaveResource(t *testing.T) {
 	if _, err := env.eng.InsertOne(base); err != nil {
 		t.Fatalf("insert base failed: %v", err)
 	}
+	repo := &models.RepositoryPool{Identity: "r1", Name: "src", Ext: ".txt", Size: 12, ObjectKey: "k"}
+	if _, err := env.eng.InsertOne(repo); err != nil {
+		t.Fatalf("insert repo failed: %v", err)
+	}
 	logic := NewSaveResourceLogic(env.ctx, env.svc)
 	resp, err := logic.SaveResource(&types.SaveResourceRequest{ParentId: 0, RepositoryIdentity: "r1", Name: "dst"})
 	if err != nil {

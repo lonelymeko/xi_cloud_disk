@@ -127,6 +127,38 @@ paths:
           description: 分享已过期（Gone）
         '500':
           description: 服务器内部错误
+  /url:
+    post:
+      summary: 获取分享下载链接
+      description: |
+        根据分享标识获取下载链接。
+        
+        **功能说明：**
+        - 不需要登录即可访问（公开接口）
+        - 校验分享是否过期
+        - 返回带过期时间的下载链接
+      operationId: ShareDownloadURLHandler
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShareDownloadURLRequest'
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareDownloadURLResponse'
+        '400':
+          description: 请求参数错误
+        '404':
+          description: 分享资源不存在
+        '410':
+          description: 分享已过期
+        '500':
+          description: 服务器内部错误
   /save:
     post:
       summary: 保存分享的资源到自己的网盘
@@ -219,8 +251,8 @@ components:
         identity:
           type: string
           description: |
-            要分享的文件或文件夹标识（user_repository.identity）
-            从文件列表接口获取
+            文件仓库标识（repository_pool.identity）
+            从文件列表接口返回的 repository_identity 获取
           example: "file_identity_abc123"
         expired_time:
           type: integer
@@ -308,7 +340,6 @@ components:
           description: |
             保存后的文件名称
             - 可以与原文件名不同
-            - 如果不传或为空，使用原文件名
             - 建议保留原扩展名
           example: "我保存的文档.pdf"
       required: [repository_identity, parent_id, name]
@@ -325,3 +356,36 @@ components:
           example: "user_repo_identity_def456"
       required: [identity]
       nullable: false
+    
+    ShareDownloadURLRequest:
+      type: object
+      description: 分享下载链接请求
+      properties:
+        share_identity:
+          type: string
+          description: 分享标识（share_basic.identity）
+          example: "share_identity_abc123"
+        expires:
+          type: integer
+          format: int32
+          description: |
+            过期时间（秒）
+            - <=0 使用默认 1 小时
+            - 最大 7 天
+          example: 3600
+      required: [share_identity]
+    
+    ShareDownloadURLResponse:
+      type: object
+      description: 分享下载链接响应
+      properties:
+        url:
+          type: string
+          description: 带签名的下载链接
+          example: "https://oss-example.aliyuncs.com/xxx?signature=..."
+        expires:
+          type: integer
+          format: int32
+          description: 链接有效期（秒）
+          example: 3600
+      required: [url, expires]

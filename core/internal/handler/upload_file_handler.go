@@ -36,6 +36,14 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 		defer file.Close()
+		if fileHeader.Size > 0 && fileHeader.Size > common.MaxUploadSize {
+			httpx.WriteJson(w, http.StatusRequestEntityTooLarge, common.Body{
+				Code: uint32(http.StatusRequestEntityTooLarge),
+				Msg:  "文件过大，超过10GB限制",
+				Data: nil,
+			})
+			return
+		}
 
 		// 复制到系统临时文件夹
 		tempFile, err := os.CreateTemp("", "upload-")
@@ -49,6 +57,21 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		if _, copyErr := io.Copy(tempFile, file); copyErr != nil {
 			httpx.ErrorCtx(r.Context(), w, copyErr)
 			return
+		}
+		if fileHeader.Size <= 0 {
+			fileInfo, statErr := tempFile.Stat()
+			if statErr != nil {
+				httpx.ErrorCtx(r.Context(), w, statErr)
+				return
+			}
+			if fileInfo.Size() > common.MaxUploadSize {
+				httpx.WriteJson(w, http.StatusRequestEntityTooLarge, common.Body{
+					Code: uint32(http.StatusRequestEntityTooLarge),
+					Msg:  "文件过大，超过10GB限制",
+					Data: nil,
+				})
+				return
+			}
 		}
 
 		// 从临时文件计算 hash

@@ -112,22 +112,28 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 					Handler: CreateShareRecordHandler(serverCtx),
 				},
 				{
-					Method:  http.MethodGet,
-					Path:    "/get",
-					Handler: GetShareRecordHandler(serverCtx),
-				},
-				{
-					Method:  http.MethodPost,
-					Path:    "/url",
-					Handler: ShareDownloadURLHandler(serverCtx),
-				},
-				{
 					Method:  http.MethodPost,
 					Path:    "/save",
 					Handler: SaveResourceHandler(serverCtx),
 				},
 			}...,
 		),
+		rest.WithPrefix("/api/share"),
+	)
+
+	server.AddRoutes(
+		[]rest.Route{
+			{
+				Method:  http.MethodGet,
+				Path:    "/get",
+				Handler: GetShareRecordHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/url",
+				Handler: ShareDownloadURLHandler(serverCtx),
+			},
+		},
 		rest.WithPrefix("/api/share"),
 	)
 }

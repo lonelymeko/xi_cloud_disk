@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .content-auto {
+    content-visibility: auto;
+  }
+  .glass-effect {
+    @apply bg-white bg-opacity-10 backdrop-blur-lg;
+  }
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent;
+  }
+  .file-hover {
+    @apply transition-all duration-300 hover:shadow-hover hover:-translate-y-1;
+  }
+  .active-view {
+    @apply bg-primary bg-opacity-10 text-primary;
+  }
+  .nav-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200;
+  }
+  .nav-item.active {
+    @apply bg-primary bg-opacity-10 text-primary font-medium;
+  }
+  .nav-item:not(.active) {
+    @apply text-gray-medium hover:bg-gray-light hover:bg-opacity-30;
+  }
+  .btn-primary {
+    @apply bg-primary hover:bg-secondary text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2;
+  }
+  .btn-secondary {
+    @apply bg-white border border-gray-light hover:border-primary text-gray-dark px-4 py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2;
+  }
+  .btn-icon {
+    @apply w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-200;
+  }
+  .btn-icon-primary {
+    @apply btn-icon bg-primary bg-opacity-10 text-primary hover:bg-opacity-20;
+  }
+  .btn-icon-secondary {
+    @apply btn-icon bg-white border border-gray-light text-gray-medium hover:border-primary hover:text-primary;
+  }
+  .progress-ring-circle {
+    transition: stroke-dashoffset 0.35s;
+    transform: rotate(-90deg);
+    transform-origin: 50% 50%;
+  }
+}
