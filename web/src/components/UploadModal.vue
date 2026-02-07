@@ -77,9 +77,10 @@ async function startUpload() {
     item.status = 'uploading'
     item.progress = 10
     try {
-      await uploadFile(item.file, props.parentId, token)
+      const result = await uploadFile(item.file, props.parentId, token)
       item.progress = 100
       item.status = 'success'
+      item.message = result.message
     } catch (e: any) {
       const message = e?.message || '上传失败'
       item.status = 'error'
@@ -129,6 +130,7 @@ async function startUpload() {
                 <h3 class="font-medium truncate max-w-[240px]">{{ item.file.name }}</h3>
                 <p class="text-xs text-gray-medium">{{ formatSize(item.file.size) }}</p>
                 <p v-if="item.status === 'error'" class="text-xs text-red-500">{{ item.message || '上传失败' }}</p>
+                <p v-if="item.status === 'success' && item.message" class="text-xs text-green-600">{{ item.message }}</p>
               </div>
             </div>
             <div class="flex items-center gap-3">

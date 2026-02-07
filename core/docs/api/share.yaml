@@ -1,7 +1,13 @@
 openapi: 3.0.3
 info:
   title: Core API - 分享服务
-  description: 包含文件分享、获取分享、保存资源等核心接口
+  description: |
+    包含文件分享、获取分享、保存资源等核心接口。
+    
+    响应包裹：所有接口统一返回结构 {code,msg,data}
+    - code: 数字状态码（0 为成功）
+    - msg: 文本消息（错误信息或提示）
+    - data: 实际业务数据（各接口定义的响应体）
   version: 1.0.0
 servers:
   - url: http://127.0.0.1:8888/api/share
@@ -59,7 +65,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CreateShareRecordResponse'
+                $ref: '#/components/schemas/ApiResponseCreateShareRecordResponse'
         '400':
           description: 请求参数错误
         '401':
@@ -118,7 +124,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GetShareRecordResponse'
+                $ref: '#/components/schemas/ApiResponseGetShareRecordResponse'
         '400':
           description: 请求参数错误
         '404':
@@ -136,7 +142,7 @@ paths:
         **功能说明：**
         - 不需要登录即可访问（公开接口）
         - 校验分享是否过期
-        - 返回带过期时间的下载链接
+        - 返回带过期时间的下载链接（统一响应包装）
       operationId: ShareDownloadURLHandler
       requestBody:
         required: true
@@ -150,7 +156,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ShareDownloadURLResponse'
+                $ref: '#/components/schemas/ApiResponseShareDownloadURLResponse'
         '400':
           description: 请求参数错误
         '404':
@@ -211,7 +217,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SaveResourceResponse'
+                $ref: '#/components/schemas/ApiResponseSaveResourceResponse'
         '400':
           description: 请求参数错误
         '401':
@@ -244,6 +250,68 @@ components:
         
         **注意：** `/api/share/get` 接口不需要 token（公开访问）
   schemas:
+    ApiResponseCreateShareRecordResponse:
+      type: object
+      description: 通用响应包裹
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 0
+        msg:
+          type: string
+          example: "ok"
+        data:
+          $ref: '#/components/schemas/CreateShareRecordResponse'
+      required: [code, msg, data]
+      nullable: false
+
+    ApiResponseGetShareRecordResponse:
+      type: object
+      description: 通用响应包裹
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 0
+        msg:
+          type: string
+          example: "ok"
+        data:
+          $ref: '#/components/schemas/GetShareRecordResponse'
+      required: [code, msg, data]
+      nullable: false
+
+    ApiResponseSaveResourceResponse:
+      type: object
+      description: 通用响应包裹
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 0
+        msg:
+          type: string
+          example: "ok"
+        data:
+          $ref: '#/components/schemas/SaveResourceResponse'
+      required: [code, msg, data]
+      nullable: false
+    ApiResponseShareDownloadURLResponse:
+      type: object
+      description: 通用响应包裹
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 0
+        msg:
+          type: string
+          example: "ok"
+        data:
+          $ref: '#/components/schemas/ShareDownloadURLResponse'
+      required: [code, msg, data]
+      nullable: false
     CreateShareRecordRequest:
       type: object
       description: 创建分享记录请求

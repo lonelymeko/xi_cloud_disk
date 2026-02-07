@@ -2,6 +2,8 @@
 
 本目录包含云盘系统的完整 API 文档，采用 OpenAPI 3.0 规范编写。
 
+统一响应包裹：所有接口返回结构 {code,msg,data}
+
 ## 📁 文档结构
 
 ```
@@ -37,7 +39,7 @@ docs/api/
 **功能：** 文件上传、管理、文件夹操作
 
 **接口列表：**
-- `POST /upload` - 文件上传（支持智能压缩和秒传）
+- `POST /upload` - 文件上传（异步入队，支持智能压缩和秒传）
 - `POST /user/repository` - 创建用户文件关联
 - `POST /user/list` - 获取文件列表（分页）
 - `POST /user/file/name/update` - 重命名文件
@@ -252,4 +254,3 @@ mindmap
     文件共享模块
       文件分享
 ```
-

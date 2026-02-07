@@ -31,10 +31,11 @@
 - **认证**：需要
 - **请求**：`multipart/form-data`，字段 `file`
 - **限制**：单文件最大 10GB，超限返回 413
+- **异步**：请求成功即入队，压缩/分片上传在后台处理
 - **压缩规则**：
   - 视频：`.mp4 .avi .mov .mkv .flv .wmv .webm .m4v`，ffmpeg H.264 CRF=23
   - 图片：`.jpg .jpeg .png .gif .bmp .webp`，最大 1920×1080，JPEG 质量 85
-- **data**：`{message}`
+- **data**：`{message}`（示例：上传任务已入队）
 
 ### 下载链接
 

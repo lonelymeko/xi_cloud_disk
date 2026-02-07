@@ -14,7 +14,7 @@ POST /detail           body{identity} -> data{name,email}
 POST /password/update  [auth] body{identity,old_password,new_password} -> data{message}
 
 FILE
-POST /upload           [auth] multipart file -> data{message} (limit 10GB)
+POST /upload           [auth] multipart file -> data{message} (async enqueue, limit 10GB)
 POST /url              [auth] body{repository_identity,expires?} -> data{url,expires} (expires<=0=>3600,max=604800)
 POST /user/list        [auth] body{id,page,size} -> data{list:UserFile[],count}
 PUT  /user/file/move   [auth] body{identity,name,parent_id} -> data{}
