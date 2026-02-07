@@ -1,3 +1,7 @@
+# ide
+.vscode/
+.idea/
+
 # Go build and test artifacts
 *.exe
 *.exe~
@@ -46,7 +50,5 @@ coverage.out
 coverage.html
 
 # 临时控制git
-web/
-go.mod
-go.sum
+web/demo/
 reference-project/

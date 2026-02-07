@@ -134,6 +134,7 @@ type UserFile struct {
 	Ext                string `json:"ext"`
 	Size               int64  `json:"size"`
 	RepositoryIdentity string `json:"repository_identity"`
+	UpdatedAt          string `json:"updated_at"`
 }
 
 // UserFileListRequest 用户文件列表请求。

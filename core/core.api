@@ -164,6 +164,7 @@ type UserFile {
 	Ext                string `json:"ext"`
 	Size               int64  `json:"size"`
 	RepositoryIdentity string `json:"repository_identity"`
+	UpdatedAt          string `json:"updated_at"`
 }
 
 type UserFileNameUpdateRequest {

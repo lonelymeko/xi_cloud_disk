@@ -21,6 +21,7 @@ const (
 
 	// MultipartUploadThreshold 超过此大小使用分片上传：100MB
 	MultipartUploadThreshold = 100 * 1024 * 1024
+	MaxUploadSize            = 10 * 1024 * 1024 * 1024
 
 	// MaxConcurrentParts 最大并发上传分片数
 	MaxConcurrentParts = 3

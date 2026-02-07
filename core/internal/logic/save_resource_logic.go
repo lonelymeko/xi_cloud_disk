@@ -46,9 +46,8 @@ func (l *SaveResourceLogic) SaveResource(req *types.SaveResourceRequest) (resp *
 	if cnt > 0 {
 		return nil, errors.New("该目录下已存在同名文件")
 	}
-	rp := new(models.UserRepository)
-	// 查询信息
-	has, err := l.svcCtx.DBEngine.Where("identity = ?", req.RepositoryIdentity, userIdentity).Get(rp)
+	repo := new(models.RepositoryPool)
+	has, err := l.svcCtx.DBEngine.Where("identity = ?", req.RepositoryIdentity).Get(repo)
 	if err != nil {
 		return nil, err
 	}
@@ -60,9 +59,9 @@ func (l *SaveResourceLogic) SaveResource(req *types.SaveResourceRequest) (resp *
 	data := models.UserRepository{
 		Identity:           utils.UUID(),
 		UserIdentity:       userIdentity,
-		ParentId:           rp.ParentId,
-		RepositoryIdentity: rp.RepositoryIdentity,
-		Ext:                rp.Ext,
+		ParentId:           req.ParentId,
+		RepositoryIdentity: repo.Identity,
+		Ext:                repo.Ext,
 		Name:               req.Name,
 		Status:             common.StatusActive,
 	}
