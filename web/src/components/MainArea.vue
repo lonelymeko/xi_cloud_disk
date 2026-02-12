@@ -27,6 +27,9 @@ const barChart = ref<Chart | null>(null)
 const homeReady = ref(false)
 const resizeObserver = ref<ResizeObserver | null>(null)
 
+const shareItems = ref<Array<{ identity: string; name: string; ext: string; size: number; repository_identity: string; created_at: string }>>([])
+const shareError = ref('')
+
 function observeContainers() {
   if (!resizeObserver.value) return
   if (doughnutContainerRef.value) resizeObserver.value.observe(doughnutContainerRef.value)
@@ -251,6 +254,7 @@ watch(() => props.active, async () => {
       barChart.value.destroy()
       barChart.value = null
     }
+    if (props.active === '已分享') loadShares()
   }
 })
 
@@ -282,6 +286,22 @@ onUnmounted(() => {
   if (barChart.value) barChart.value.destroy()
   if (resizeObserver.value) resizeObserver.value.disconnect()
 })
+
+function loadShares() {
+  shareError.value = ''
+  try {
+    const saved = localStorage.getItem('my_shares')
+    const list = saved ? JSON.parse(saved) : []
+    shareItems.value = Array.isArray(list) ? list : []
+  } catch {
+    shareItems.value = []
+  }
+}
+
+function copyShareLink(identity: string) {
+  const link = `${location.origin}/s/${identity}`
+  if (navigator.clipboard) navigator.clipboard.writeText(link)
+}
 </script>
 
 <template>
@@ -436,5 +456,31 @@ onUnmounted(() => {
     <template v-else>
       <FileWorkspace :active="props.active" :search="props.search" :refresh-key="props.refreshKey" @open-upload="emit('open-upload', $event)" />
     </template>
+
+    <div v-if="props.active === '已分享'" class="mt-6">
+      <div class="bg-white rounded-xl shadow-card p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-medium">我的分享</h2>
+        </div>
+        <div v-if="shareItems.length === 0" class="text-sm text-gray-medium">暂无分享记录</div>
+        <div v-else class="divide-y divide-gray-light">
+          <div v-for="item in shareItems" :key="item.identity" class="flex items-center justify-between py-3">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg bg-purple-50 text-purple-500 flex items-center justify-center">
+                <i class="fa fa-share-alt"></i>
+              </div>
+              <div>
+                <div class="font-medium">{{ item.name }}</div>
+                <div class="text-xs text-gray-medium">{{ item.ext || '-' }} · {{ item.size }}</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button class="btn-secondary" @click="copyShareLink(item.identity)">复制链接</button>
+            </div>
+          </div>
+        </div>
+        <p v-if="shareError" class="text-red-600 text-sm mt-3">{{ shareError }}</p>
+      </div>
+    </div>
   </main>
 </template>

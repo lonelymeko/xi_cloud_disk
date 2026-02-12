@@ -5,6 +5,7 @@ import SidebarLeft from './components/SidebarLeft.vue'
 import MainArea from './components/MainArea.vue'
 import UploadModal from './components/UploadModal.vue'
 import LoginOverlay from './components/LoginOverlay.vue'
+import ShareView from './components/ShareView.vue'
 import { getToken, clearToken, getTokenPayload } from './lib/auth'
 import { authProbe, getUserDetail } from './lib/api'
 
@@ -16,6 +17,7 @@ const activeNav = ref('文件资源管理器')
 const searchText = ref('')
 const uploadParentId = ref(0)
 const uploadSignal = ref(0)
+const shareRoute = ref(false)
 
 async function loadUserFromToken(token: string) {
   const payload = getTokenPayload(token)
@@ -83,6 +85,7 @@ watch(activeNav, (value) => {
 
 onMounted(async () => {
   loadNavMemory()
+  shareRoute.value = (location.pathname || '').startsWith('/s/')
   const t = getToken()
   if (!t) {
     loggedIn.value = false
@@ -97,14 +100,19 @@ onMounted(async () => {
 
 <template>
   <div class="bg-gray-50 font-sans text-gray-dark min-h-screen">
-    <LoginOverlay v-if="!loggedIn" @logged-in="onLoggedIn" />
-    <template v-if="loggedIn">
-      <LayoutHeader :user-name="userName" @search="onSearch" @logout="onLogout" @open-profile="onOpenProfile" />
-      <SidebarLeft :active="activeNav" @select="onSelectNav" />
-      <div class="pt-16 pl-64 h-[calc(100vh-4rem)]">
-        <MainArea :active="activeNav" :user-name="userName" :user-email="userEmail" :search="searchText" :refresh-key="uploadSignal" @open-upload="onOpenUpload" @refresh-user="onLoggedIn" @logout="onLogout" />
-      </div>
-      <UploadModal :visible="showUpload" :parent-id="uploadParentId" @close="showUpload=false" @uploaded="onUploaded" />
+    <template v-if="shareRoute">
+      <ShareView />
+    </template>
+    <template v-else>
+      <LoginOverlay v-if="!loggedIn" @logged-in="onLoggedIn" />
+      <template v-if="loggedIn">
+        <LayoutHeader :user-name="userName" @search="onSearch" @logout="onLogout" @open-profile="onOpenProfile" />
+        <SidebarLeft :active="activeNav" @select="onSelectNav" />
+        <div class="pt-16 pl-64 h-[calc(100vh-4rem)]">
+          <MainArea :active="activeNav" :user-name="userName" :user-email="userEmail" :search="searchText" :refresh-key="uploadSignal" @open-upload="onOpenUpload" @refresh-user="onLoggedIn" @logout="onLogout" />
+        </div>
+        <UploadModal :visible="showUpload" :parent-id="uploadParentId" @close="showUpload=false" @uploaded="onUploaded" />
+      </template>
     </template>
   </div>
 </template>

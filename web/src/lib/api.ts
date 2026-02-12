@@ -62,6 +62,26 @@ export interface DownloadURLResp {
   expires: number
 }
 
+export interface CreateShareResp {
+  identity: string
+}
+
+export interface ShareDetailResp {
+  repository_identity: string
+  name: string
+  ext: string
+  size: number
+}
+
+export interface ShareURLResp {
+  url: string
+  expires: number
+}
+
+export interface SaveShareResp {
+  identity: string
+}
+
 async function readJson<T>(res: Response): Promise<ApiResp<T>> {
   const json = (await res.json().catch(() => null)) as ApiResp<T> | null
   if (!json) throw new Error(`HTTP ${res.status}`)
@@ -315,5 +335,73 @@ export async function getDownloadUrl(repositoryIdentity: string, expires: number
   }
   const json = await readJson<DownloadURLResp>(res)
   if (json.code !== 0) throw new Error(json.msg || '获取下载链接失败')
+  return json.data
+}
+
+export async function createShare(repositoryIdentity: string, expiredTime: number, token: string): Promise<CreateShareResp> {
+  const res = await fetch(`${API_BASE}/api/share/create`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...withAuth(token),
+    },
+    body: JSON.stringify({ identity: repositoryIdentity, expired_time: expiredTime }),
+  })
+  if (!res.ok) {
+    const json = (await res.json().catch(() => null)) as ApiResp<CreateShareResp> | null
+    if (json?.msg) throw new Error(json.msg)
+    throw new Error(`HTTP ${res.status}`)
+  }
+  const json = await readJson<CreateShareResp>(res)
+  if (json.code !== 0) throw new Error(json.msg || '创建分享失败')
+  return json.data
+}
+
+export async function getShare(identity: string): Promise<ShareDetailResp> {
+  const url = new URL(`${API_BASE}/api/share/get`)
+  url.searchParams.set('identity', identity)
+  const res = await fetch(url.toString(), { method: 'GET' })
+  if (!res.ok) {
+    const json = (await res.json().catch(() => null)) as ApiResp<ShareDetailResp> | null
+    if (json?.msg) throw new Error(json.msg)
+    throw new Error(`HTTP ${res.status}`)
+  }
+  const json = await readJson<ShareDetailResp>(res)
+  if (json.code !== 0) throw new Error(json.msg || '获取分享失败')
+  return json.data
+}
+
+export async function getShareUrl(shareIdentity: string, expires: number): Promise<ShareURLResp> {
+  const res = await fetch(`${API_BASE}/api/share/url`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ share_identity: shareIdentity, expires }),
+  })
+  if (!res.ok) {
+    const json = (await res.json().catch(() => null)) as ApiResp<ShareURLResp> | null
+    if (json?.msg) throw new Error(json.msg)
+    throw new Error(`HTTP ${res.status}`)
+  }
+  const json = await readJson<ShareURLResp>(res)
+  if (json.code !== 0) throw new Error(json.msg || '获取分享下载链接失败')
+  return json.data
+}
+
+export async function saveShare(repositoryIdentity: string, parentId: number, name: string, token: string): Promise<SaveShareResp> {
+  const res = await fetch(`${API_BASE}/api/share/save`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...withAuth(token),
+    },
+    body: JSON.stringify({ repository_identity: repositoryIdentity, parent_id: parentId, name }),
+  })
+  if (!res.ok) {
+    const json = (await res.json().catch(() => null)) as ApiResp<SaveShareResp> | null
+    if (json?.msg) throw new Error(json.msg)
+    throw new Error(`HTTP ${res.status}`)
+  }
+  const json = await readJson<SaveShareResp>(res)
+  if (json.code !== 0) throw new Error(json.msg || '保存分享失败')
   return json.data
 }

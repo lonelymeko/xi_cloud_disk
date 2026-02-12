@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import FileBreadcrumb from './FileBreadcrumb.vue'
 import FileToolbar from './FileToolbar.vue'
 import FileList from './FileList.vue'
-import { createFolder, deleteUserItem, getDownloadUrl, getUserFileList, renameUserFile, type UserFile } from '../lib/api'
+import { createFolder, deleteUserItem, getDownloadUrl, getUserFileList, renameUserFile, createShare, type UserFile } from '../lib/api'
 import { getToken } from '../lib/auth'
 
 type Crumb = { id: number; name: string }
@@ -23,6 +23,10 @@ const list = ref<UserFile[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
+const infiniteMode = ref(false)
+const aggregated = ref<UserFile[]>([])
+const sentinelRef = ref<HTMLDivElement | null>(null)
+let sentinelObserver: IntersectionObserver | null = null
 
 const createFolderOpen = ref(false)
 const createFolderName = ref('')
@@ -31,6 +35,14 @@ const renameName = ref('')
 const renameTarget = ref<UserFile | null>(null)
 const deleteOpen = ref(false)
 const deleteTarget = ref<UserFile | null>(null)
+
+const shareOpen = ref(false)
+const shareTarget = ref<UserFile | null>(null)
+const shareLoading = ref(false)
+const shareError = ref('')
+const shareExpired = ref(0)
+const shareIdentity = ref('')
+const shareLink = ref('')
 
 type MockNode = UserFile & { parent_id: number }
 const mockNodes = ref<MockNode[]>([
@@ -233,6 +245,10 @@ async function refresh() {
     }
     list.value = data.list || []
     total.value = data.count || 0
+    if (infiniteMode.value) {
+      if (page.value === 1) aggregated.value = list.value.slice()
+      else aggregated.value = [...aggregated.value, ...list.value]
+    }
     const maxPage = Math.max(1, Math.ceil(total.value / pageSize.value))
     if (page.value > maxPage) {
       page.value = maxPage
@@ -326,6 +342,63 @@ async function submitDelete() {
   }
 }
 
+function openShare(item: UserFile) {
+  shareTarget.value = item
+  shareIdentity.value = ''
+  shareLink.value = ''
+  shareError.value = ''
+  shareExpired.value = 0
+  shareOpen.value = true
+}
+
+function closeShare() {
+  if (shareLoading.value) return
+  shareOpen.value = false
+}
+
+function copyShareLink() {
+  if (!shareLink.value) return
+  if (navigator.clipboard) navigator.clipboard.writeText(shareLink.value)
+}
+
+function saveShareRecord(record: { identity: string; repository_identity: string; name: string; ext: string; size: number; created_at: string }) {
+  const saved = localStorage.getItem('my_shares')
+  const list = saved ? JSON.parse(saved) : []
+  list.unshift(record)
+  localStorage.setItem('my_shares', JSON.stringify(list.slice(0, 200)))
+}
+
+async function submitShare() {
+  if (!shareTarget.value?.repository_identity) {
+    shareError.value = '仅支持文件分享'
+    return
+  }
+  const token = getToken()
+  if (!token) {
+    shareError.value = '登录已失效'
+    return
+  }
+  shareLoading.value = true
+  shareError.value = ''
+  try {
+    const data = await createShare(shareTarget.value.repository_identity, Math.max(0, Number(shareExpired.value) || 0), token)
+    shareIdentity.value = data.identity
+    shareLink.value = `${location.origin}/s/${data.identity}`
+    saveShareRecord({
+      identity: data.identity,
+      repository_identity: shareTarget.value.repository_identity,
+      name: shareTarget.value.name,
+      ext: shareTarget.value.ext,
+      size: shareTarget.value.size,
+      created_at: new Date().toISOString(),
+    })
+  } catch (e: any) {
+    shareError.value = e?.message || '创建失败'
+  } finally {
+    shareLoading.value = false
+  }
+}
+
 async function onDownload(item: UserFile) {
   if (!item.repository_identity) return
   const token = getToken()
@@ -386,6 +459,31 @@ onMounted(() => {
     }
   }
   if (supported.value) refresh()
+  if (typeof IntersectionObserver !== 'undefined') {
+    sentinelObserver = new IntersectionObserver(async (entries) => {
+      if (!infiniteMode.value) return
+      const entry = entries[0]
+      if (entry && entry.isIntersecting && !loading.value) {
+        if (list.value.length === 0) return
+        if (aggregated.value.length >= total.value) return
+        page.value += 1
+        await refresh()
+      }
+    })
+  }
+})
+
+watch(infiniteMode, async (value) => {
+  aggregated.value = []
+  page.value = 1
+  await refresh()
+  if (value && sentinelRef.value && sentinelObserver) sentinelObserver.observe(sentinelRef.value)
+  else if (sentinelObserver && sentinelRef.value) sentinelObserver.unobserve(sentinelRef.value)
+})
+
+watch(() => sentinelRef.value, (el) => {
+  if (!infiniteMode.value) return
+  if (sentinelObserver && el) sentinelObserver.observe(el)
 })
 </script>
 
@@ -400,6 +498,7 @@ onMounted(() => {
       <div class="flex items-center gap-2 mb-4">
         <button class="btn-secondary" :class="{ 'active-view': source === 'api' }" @click="setSource('api')">真实数据</button>
         <button class="btn-secondary" :class="{ 'active-view': source === 'mock' }" @click="setSource('mock')">模拟数据</button>
+        <button class="btn-secondary" :class="{ 'active-view': infiniteMode }" @click="infiniteMode = !infiniteMode">滚动加载</button>
       </div>
       <div v-if="error" class="mb-4 text-sm text-red-500">{{ error }}</div>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -426,9 +525,10 @@ onMounted(() => {
             <span>返回上一级</span>
           </button>
         </div>
-        <div v-if="sortedItems.length === 0" class="bg-white rounded-xl shadow-card p-6 text-sm text-gray-medium">暂无内容</div>
-        <FileList v-else :items="sortedItems" :view="view" :sort-key="sortKey" :sort-order="sortOrder" @download="onDownload" @rename="openRename" @delete="openDelete" @open="onOpenFolder" @change-sort="onChangeSort" />
-        <div v-if="sortedItems.length > 0" class="flex flex-wrap items-center justify-between gap-3 mt-4">
+        <div v-if="(infiniteMode ? aggregated.length : sortedItems.length) === 0" class="bg-white rounded-xl shadow-card p-6 text-sm text-gray-medium">暂无内容</div>
+        <FileList v-else :items="infiniteMode ? aggregated : sortedItems" :view="view" :sort-key="sortKey" :sort-order="sortOrder" @download="onDownload" @rename="openRename" @delete="openDelete" @open="onOpenFolder" @change-sort="onChangeSort" @share="openShare" />
+        <div v-if="infiniteMode" ref="sentinelRef" class="h-8"></div>
+        <div v-if="!infiniteMode && sortedItems.length > 0" class="flex flex-wrap items-center justify-between gap-3 mt-4">
           <div class="text-sm text-gray-medium">共 {{ total }} 项 · 第 {{ page }} / {{ pageCount }} 页</div>
           <div class="flex items-center gap-2">
             <button class="btn-secondary" :disabled="page <= 1" @click="goPrev">上一页</button>
@@ -468,6 +568,30 @@ onMounted(() => {
         <div class="flex justify-end gap-2">
           <button class="btn-secondary" :disabled="loading" @click="deleteOpen = false">取消</button>
           <button class="btn-primary" :disabled="loading" @click="submitDelete">删除</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="shareOpen" class="fixed inset-0 z-50 bg-black bg-opacity-40 flex items-center justify-center">
+      <div class="bg-white rounded-lg shadow-card w-full max-w-sm p-6">
+        <div class="text-lg font-semibold text-gray-800 mb-4">创建分享</div>
+        <div class="space-y-3">
+          <div class="text-sm text-gray-medium">{{ shareTarget?.name || '' }}</div>
+          <label class="block">
+            <input v-model.number="shareExpired" type="number" min="0" placeholder="过期时间(秒)，0为永久或服务默认" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </label>
+          <p v-if="shareError" class="text-red-600 text-sm">{{ shareError }}</p>
+          <div v-if="shareIdentity" class="space-y-2">
+            <div class="text-sm">分享链接</div>
+            <div class="flex items-center gap-2">
+              <input class="flex-1 border border-gray-300 rounded px-3 py-2" :value="shareLink" readonly />
+              <button class="btn-secondary" @click="copyShareLink">复制</button>
+            </div>
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 mt-6">
+          <button class="btn-secondary" :disabled="shareLoading" @click="closeShare">关闭</button>
+          <button class="btn-primary" :disabled="shareLoading || !shareTarget" @click="submitShare">{{ shareLoading ? '创建中...' : '创建分享' }}</button>
         </div>
       </div>
     </div>

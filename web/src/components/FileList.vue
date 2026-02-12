@@ -9,6 +9,7 @@ const emit = defineEmits<{
   (e: 'delete', item: UserFile): void
   (e: 'open', item: UserFile): void
   (e: 'change-sort', value: 'name' | 'type' | 'size' | 'updated'): void
+  (e: 'share', item: UserFile): void
 }>()
 
 const gridClass = computed(() => props.view === 'large'
@@ -118,6 +119,10 @@ function getItemMeta(item: UserFile) {
                     <i class="fa fa-download w-5 text-gray-medium"></i>
                     <span>下载</span>
                   </button>
+                  <button v-if="!isFolder(item)" class="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50" @click="emit('share', item)">
+                    <i class="fa fa-share-alt w-5 text-gray-medium"></i>
+                    <span>创建分享</span>
+                  </button>
                   <button class="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50" @click="emit('rename', item)">
                     <i class="fa fa-pencil w-5 text-gray-medium"></i>
                     <span>重命名</span>
@@ -160,6 +165,10 @@ function getItemMeta(item: UserFile) {
                   <button v-if="!isFolder(item)" class="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50" @click="emit('download', item)">
                     <i class="fa fa-download w-5 text-gray-medium"></i>
                     <span>下载</span>
+                  </button>
+                  <button v-if="!isFolder(item)" class="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50" @click="emit('share', item)">
+                    <i class="fa fa-share-alt w-5 text-gray-medium"></i>
+                    <span>创建分享</span>
                   </button>
                   <button class="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50" @click="emit('rename', item)">
                     <i class="fa fa-pencil w-5 text-gray-medium"></i>
