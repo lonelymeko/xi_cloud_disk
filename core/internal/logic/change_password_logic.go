@@ -47,18 +47,18 @@ func (l *ChangePasswordLogic) ChangePassword(req *types.ChangePasswordRequest) (
 		logx.Errorf("password update user not found identity=%s", identity)
 		return nil, errors.New("用户不存在")
 	}
-	if user.Password != utils.Md5(req.OldPassword) {
+    if user.Password != utils.Md5(utils.DecodeMaybeBase64(req.OldPassword)) {
 		logx.Errorf("password update old password mismatch identity=%s", identity)
 		return nil, errors.New("旧密码错误")
 	}
-	if req.OldPassword == req.NewPassword {
+    if utils.DecodeMaybeBase64(req.OldPassword) == utils.DecodeMaybeBase64(req.NewPassword) {
 		return nil, errors.New("新密码不能与旧密码相同")
 	}
-	if !isPasswordStrong(req.NewPassword) {
+    if !isPasswordStrong(utils.DecodeMaybeBase64(req.NewPassword)) {
 		return nil, errors.New("密码强度不足")
 	}
 
-	update := &models.UserBasic{Password: utils.Md5(req.NewPassword)}
+    update := &models.UserBasic{Password: utils.Md5(utils.DecodeMaybeBase64(req.NewPassword))}
 	affected, err := l.svcCtx.DBEngine.Where("identity = ?", identity).Cols("password").Update(update)
 	if err != nil {
 		logx.Severef("password update failed identity=%s err=%v", identity, err)

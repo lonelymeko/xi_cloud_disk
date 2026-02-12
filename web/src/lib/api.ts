@@ -82,6 +82,13 @@ export interface SaveShareResp {
   identity: string
 }
 
+function base64Encode(input: string): string {
+  const bytes = new TextEncoder().encode(input)
+  let bin = ''
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
+  return btoa(bin)
+}
+
 async function readJson<T>(res: Response): Promise<ApiResp<T>> {
   const json = (await res.json().catch(() => null)) as ApiResp<T> | null
   if (!json) throw new Error(`HTTP ${res.status}`)
@@ -96,7 +103,7 @@ export async function login(name: string, password: string): Promise<LoginResp> 
   const res = await fetch(`${API_BASE}/api/users/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, password }),
+    body: JSON.stringify({ name, password: base64Encode(password) }),
   })
   if (!res.ok) {
     const json = (await res.json().catch(() => null)) as ApiResp<LoginResp> | null
@@ -112,7 +119,7 @@ export async function register(name: string, email: string, password: string, co
   const res = await fetch(`${API_BASE}/api/users/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, email, password, code }),
+    body: JSON.stringify({ name, email, password: base64Encode(password), code }),
   })
   if (!res.ok) {
     const json = (await res.json().catch(() => null)) as ApiResp<RegisterResp> | null
@@ -147,7 +154,7 @@ export async function changePassword(identity: string, oldPassword: string, newP
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ identity, old_password: oldPassword, new_password: newPassword }),
+    body: JSON.stringify({ identity, old_password: base64Encode(oldPassword), new_password: base64Encode(newPassword) }),
   })
   if (!res.ok) {
     const json = (await res.json().catch(() => null)) as ApiResp<ChangePasswordResp> | null
@@ -163,7 +170,7 @@ export async function resetPassword(email: string, code: string, newPassword: st
   const res = await fetch(`${API_BASE}/api/users/password/reset`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, code, new_password: newPassword }),
+    body: JSON.stringify({ email, code, new_password: base64Encode(newPassword) }),
   })
   if (!res.ok) {
     const json = (await res.json().catch(() => null)) as ApiResp<ResetPasswordResp> | null

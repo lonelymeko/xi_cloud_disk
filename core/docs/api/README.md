@@ -95,6 +95,14 @@ Authorization: Bearer <your_token>
 1. **登录：** `POST /api/users/login`
 2. **注册：** `POST /api/users/register`
 
+### 密码字段编码规则
+
+所有涉及密码的接口参数使用 Base64 编码传输：
+- 登录：`password` 为 Base64
+- 注册：`password` 为 Base64
+- 修改密码：`old_password`、`new_password` 为 Base64
+- 重置密码：`new_password` 为 Base64
+
 ### 公开接口（无需认证）
 
 - `GET /api/share/get` - 获取分享详情

@@ -60,12 +60,12 @@ func (l *RegisterLogic) Register(req *types.RegisterRequest) (resp *types.Regist
 	uuid := utils.UUID()
 
 	// 创建用户模型对象
-	userModel := &models.UserBasic{
-		Name:     req.Name,
-		Password: utils.Md5(req.Password),
-		Email:    req.Email,
-		Identity: uuid, // 可以生成一个唯一标识
-	}
+    userModel := &models.UserBasic{
+        Name:     req.Name,
+        Password: utils.Md5(utils.DecodeMaybeBase64(req.Password)),
+        Email:    req.Email,
+        Identity: uuid,
+    }
 	// 插入数据库
 	affected, err := l.svcCtx.DBEngine.InsertOne(userModel)
 	if err != nil {

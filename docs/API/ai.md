@@ -4,14 +4,15 @@ BASE_FILE  http://127.0.0.1:8888/api/file
 BASE_SHARE http://127.0.0.1:8888/api/share
 AUTH Authorization: Bearer <token>
 RESP {code,msg,data}
+PASS Base64 for all password fields
 
 USERS
-POST /login            body{name,password} -> data{token,name}
-POST /register         body{name,email,password,code} -> data{token,name}
+POST /login            body{name,password(Base64)} -> data{token,name}
+POST /register         body{name,email,password(Base64),code} -> data{token,name}
 POST /send-verification-code body{email} -> data{message}
-POST /password/reset   body{email,code,new_password} -> data{message}
+POST /password/reset   body{email,code,new_password(Base64)} -> data{message}
 POST /detail           body{identity} -> data{name,email}
-POST /password/update  [auth] body{identity,old_password,new_password} -> data{message}
+POST /password/update  [auth] body{identity,old_password(Base64),new_password(Base64)} -> data{message}
 
 FILE
 POST /upload           [auth] multipart file -> data{message} (async enqueue, limit 10GB)

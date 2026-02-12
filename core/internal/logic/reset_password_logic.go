@@ -59,7 +59,7 @@ func (l *ResetPasswordLogic) ResetPassword(req *types.ResetPasswordRequest) (res
 		return nil, errors.New("用户不存在")
 	}
 
-	update := &models.UserBasic{Password: utils.Md5(newPassword)}
+    update := &models.UserBasic{Password: utils.Md5(utils.DecodeMaybeBase64(newPassword))}
 	affected, err := l.svcCtx.DBEngine.Where("email = ?", email).Cols("password").Update(update)
 	if err != nil {
 		logx.Severef("password reset update failed email=%s err=%v", email, err)

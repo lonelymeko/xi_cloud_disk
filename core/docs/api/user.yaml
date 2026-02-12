@@ -16,7 +16,7 @@ paths:
   /login:
     post:
       summary: 用户登录接口
-      description: 接收用户名/邮箱和密码，返回登录令牌和用户名
+      description: 接收用户名/邮箱和密码（Base64 编码），返回登录令牌和用户名
       operationId: LoginHandler
       requestBody:
         required: true
@@ -58,7 +58,7 @@ paths:
   /password/update:
     post:
       summary: 修改用户密码接口
-      description: 校验旧密码后修改为新密码
+      description: 校验旧密码（Base64 编码）后修改为新密码（Base64 编码）
       operationId: ChangePasswordHandler
       requestBody:
         required: true
@@ -80,7 +80,7 @@ paths:
   /password/reset:
     post:
       summary: 忘记密码重置接口
-      description: 通过邮箱验证码重置密码
+      description: 通过邮箱验证码重置密码（新密码使用 Base64 编码）
       operationId: ResetPasswordHandler
       requestBody:
         required: true
@@ -246,8 +246,8 @@ components:
           example: "zhangsan"
         password:
           type: string
-          description: 用户密码
-          example: "123456Abc"
+          description: 用户密码（Base64 编码）
+          example: "MTIzNDU2QWJj"
       nullable: false
     RegisterRequest:
       type: object
@@ -264,8 +264,8 @@ components:
           example: "zhangsan@example.com"
         password:
           type: string
-          description: 用户密码
-          example: "123456Abc"
+          description: 用户密码（Base64 编码）
+          example: "MTIzNDU2QWJj"
         code:
           type: string
           description: 邮箱验证码
@@ -309,12 +309,12 @@ components:
           example: "user_identity_12345"
         old_password:
           type: string
-          description: 旧密码
-          example: "oldPass123"
+          description: 旧密码（Base64 编码）
+          example: "b2xkUGFzczEyMw=="
         new_password:
           type: string
-          description: 新密码
-          example: "newPass456"
+          description: 新密码（Base64 编码）
+          example: "bmV3UGFzczQ1Ng=="
       nullable: false
     ChangePasswordResponse:
       type: object
@@ -341,8 +341,8 @@ components:
           example: "123456"
         new_password:
           type: string
-          description: 新密码
-          example: "NewPass123"
+          description: 新密码（Base64 编码）
+          example: "TmV3UGFzczEyMw=="
       nullable: false
     ResetPasswordResponse:
       type: object

@@ -5,6 +5,7 @@
 - **响应包裹**：所有接口统一返回结构 `{code,msg,data}`
 - **鉴权**：需要登录的接口在 Header 中携带 `Authorization: Bearer <token>`
 - **时间单位**：expires、expired_time 均为秒
+- **密码字段编码**：所有涉及密码的请求字段使用 **Base64 编码** 传输（login.password、register.password、password/update.old_password、password/update.new_password、password/reset.new_password）
 
 ### 响应示例
 
@@ -16,12 +17,12 @@
 
 | 方法 | 路径 | 认证 | 说明 | 请求体 | data 结构 |
 | --- | --- | --- | --- | --- | --- |
-| POST | /login | 否 | 登录 | {name,password} | {token,name} |
-| POST | /register | 否 | 注册 | {name,email,password,code} | {token,name} |
+| POST | /login | 否 | 登录（密码 Base64） | {name,password} | {token,name} |
+| POST | /register | 否 | 注册（密码 Base64） | {name,email,password,code} | {token,name} |
 | POST | /send-verification-code | 否 | 发送邮箱验证码 | {email} | {message} |
-| POST | /password/reset | 否 | 重置密码 | {email,code,new_password} | {message} |
+| POST | /password/reset | 否 | 重置密码（新密码 Base64） | {email,code,new_password} | {message} |
 | POST | /detail | 否 | 用户详情 | {identity} | {name,email} |
-| POST | /password/update | 是 | 修改密码 | {identity,old_password,new_password} | {message} |
+| POST | /password/update | 是 | 修改密码（旧/新密码 Base64） | {identity,old_password,new_password} | {message} |
 
 ## 文件服务（/api/file）
 

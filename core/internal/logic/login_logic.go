@@ -36,7 +36,7 @@ func (l *LoginLogic) Login(req *types.LoginRequest) (resp *types.LoginResponse, 
 
 	user := new(models.UserBasic)
 	// 根据用户名和密码在数据库中查找用户
-	has, err := l.svcCtx.DBEngine.Where("name = ? AND password = ?", req.Name, utils.Md5(req.Password)).Get(user)
+    has, err := l.svcCtx.DBEngine.Where("name = ? AND password = ?", req.Name, utils.Md5(utils.DecodeMaybeBase64(req.Password))).Get(user)
 	if err != nil {
 		return nil, err
 	}
