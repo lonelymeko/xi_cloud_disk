@@ -287,6 +287,8 @@ func (c *Consumer) processFile(body []byte) (err error) {
 			Identity:  task.RepositoryIdentity,
 		}
 		_, err = c.svcCtx.DBEngine.Insert(rp)
+		// 存入布隆过滤器
+		c.svcCtx.MyBloomFilter.AddFileHash(task.Hash)
 		if err != nil {
 			return err
 		}

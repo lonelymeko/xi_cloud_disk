@@ -128,16 +128,18 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		md5Bytes := h.Sum(nil)
 		hash := hex.EncodeToString(md5Bytes)
 
-		// 判断文件是否已存在
-		rp := new(models.RepositoryPool)
-		has, err := svcCtx.DBEngine.Where("hash=?", hash).Get(rp)
-		if err != nil {
-			httpx.ErrorCtx(r.Context(), w, err)
-			return
-		}
+		// 判断文件是否已存在，现改成从布隆过滤器找
+		isExisted := svcCtx.MyBloomFilter.IsFileExisted(hash)
 
 		// 如果文件信息存在：
-		if has {
+		if isExisted {
+			rp := new(models.RepositoryPool)
+			// 避免假阳
+			has, err := svcCtx.DBEngine.Where("hash=?", hash).Get(rp)
+			if err != nil {
+				httpx.ErrorCtx(r.Context(), w, err)
+				return
+			}
 			l := logic.NewUploadFileLogic(r.Context(), svcCtx)
 			resp, err := l.UploadFile(&req, has, rp.Identity, tempFile.Name(), hash)
 			common.Response(r, w, resp, err)
@@ -147,7 +149,7 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		// 不存在
 		identity := utils.UUID()
 		l := logic.NewUploadFileLogic(r.Context(), svcCtx)
-		resp, err := l.UploadFile(&req, has, identity, tempFile.Name(), hash)
+		resp, err := l.UploadFile(&req, false, identity, tempFile.Name(), hash)
 		common.Response(r, w, resp, err)
 	}
 }
