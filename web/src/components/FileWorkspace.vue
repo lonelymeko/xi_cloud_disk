@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import FileBreadcrumb from './FileBreadcrumb.vue'
 import FileToolbar from './FileToolbar.vue'
 import FileList from './FileList.vue'
@@ -10,6 +10,11 @@ type Crumb = { id: number; name: string }
 
 const props = defineProps<{ active: string; search: string; refreshKey: number }>()
 const emit = defineEmits<{ (e: 'open-upload', parentId: number): void }>()
+
+// 防重复请求控制
+const refreshLock = ref(false)
+const debounceTimer = ref<NodeJS.Timeout | null>(null)
+const lastRequestId = ref(0)
 
 const loading = ref(false)
 const error = ref('')
@@ -83,51 +88,54 @@ function setSource(value: 'api' | 'mock') {
 const supported = computed(() => ['文件资源管理器', '图片', '视频', '音频', '文档', '压缩包'].includes(props.active))
 const rootLabel = computed(() => (props.active === '文件资源管理器' ? '我的文件' : props.active))
 
+// 优化的监听器，使用防抖和条件检查
 watch(rootLabel, (value) => {
   const saved = localStorage.getItem('fw_state')
+  let newState = { id: 0, path: [{ id: 0, name: value }] }
+  
   if (saved) {
     try {
       const state = JSON.parse(saved)
       if (state && typeof state.id === 'number' && Array.isArray(state.path)) {
-        currentFolderId.value = state.id
-        path.value = state.path
-      } else {
-        path.value = [{ id: 0, name: value }]
-        currentFolderId.value = 0
+        newState = { id: state.id, path: state.path }
       }
     } catch {
-      path.value = [{ id: 0, name: value }]
-      currentFolderId.value = 0
+      // 解析失败使用默认值
     }
-  } else {
-    path.value = [{ id: 0, name: value }]
-    currentFolderId.value = 0
   }
-  page.value = 1
+  
+  // 只有当状态真正改变时才更新
+  if (currentFolderId.value !== newState.id || JSON.stringify(path.value) !== JSON.stringify(newState.path)) {
+    currentFolderId.value = newState.id
+    path.value = newState.path
+    page.value = 1
+    debouncedRefresh(100)
+  }
 })
 
-watch(() => props.active, () => {
-  if (!supported.value) return
+watch(() => props.active, (newVal, oldVal) => {
+  if (!supported.value || newVal === oldVal) return
   page.value = 1
-  refresh()
+  debouncedRefresh(150)
 })
 
-watch(() => props.refreshKey, () => {
-  if (!supported.value) return
+watch(() => props.refreshKey, (newVal, oldVal) => {
+  if (!supported.value || newVal === oldVal) return
   page.value = 1
-  refresh()
+  debouncedRefresh(100)
 })
 
-watch(() => props.search, () => {
-  if (!supported.value) return
+watch(() => props.search, (newVal, oldVal) => {
+  if (!supported.value || newVal === oldVal) return
   page.value = 1
-  refresh()
+  debouncedRefresh(300) // 搜索使用更长的防抖时间
 })
 
-watch(currentFolderId, () => {
-  if (!supported.value) return
+watch(currentFolderId, (newVal, oldVal) => {
+  if (!supported.value || newVal === oldVal) return
   localStorage.setItem('fw_state', JSON.stringify({ id: currentFolderId.value, path: path.value }))
-  refresh()
+  page.value = 1
+  debouncedRefresh(150)
 })
 
 function isFolder(item: UserFile) {
@@ -230,35 +238,115 @@ function formatSize(size: number) {
   return `${(size / 1024 / 1024 / 1024).toFixed(1)}GB`
 }
 
+// 数据去重函数
+function deduplicateFiles(files: UserFile[]): UserFile[] {
+  const seen = new Set<string>()
+  return files.filter(file => {
+    if (seen.has(file.identity)) {
+      console.warn('发现重复文件:', file.identity, file.name)
+      return false
+    }
+    seen.add(file.identity)
+    return true
+  })
+}
+
+// 防抖刷新函数
+function debouncedRefresh(delay = 300) {
+  if (debounceTimer.value) {
+    clearTimeout(debounceTimer.value)
+  }
+  
+  debounceTimer.value = setTimeout(() => {
+    refresh()
+  }, delay)
+}
+
 async function refresh() {
+  // 防止重复请求
+  if (refreshLock.value) {
+    console.log('请求被锁定，跳过本次刷新')
+    return
+  }
+  
+  const requestId = ++lastRequestId.value
+  refreshLock.value = true
+  
   const token = getToken()
-  if (!token) return
+  if (!token) {
+    refreshLock.value = false
+    return
+  }
+  
   loading.value = true
   error.value = ''
+  
   try {
     let data: { list: UserFile[]; count: number }
     if (source.value === 'mock') {
       const mock = getMockList(currentFolderId.value, page.value, pageSize.value)
       data = { list: mock.list, count: mock.count }
     } else {
-      data = await getUserFileList(currentFolderId.value, page.value, pageSize.value, token)
+      // 添加请求超时控制
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 10000) // 10秒超时
+      
+      try {
+        data = await getUserFileList(currentFolderId.value, page.value, pageSize.value, token)
+        clearTimeout(timeoutId)
+      } catch (err: any) {
+        clearTimeout(timeoutId)
+        if (err.name === 'AbortError') {
+          throw new Error('请求超时')
+        }
+        throw err
+      }
     }
-    list.value = data.list || []
+    
+    // 检查是否是最新的请求
+    if (requestId !== lastRequestId.value) {
+      console.log('请求已过期，丢弃结果')
+      return
+    }
+    
+    // 数据去重处理
+    const deduplicatedList = deduplicateFiles(data.list || [])
+    
+    list.value = deduplicatedList
     total.value = data.count || 0
+    
     if (infiniteMode.value) {
-      if (page.value === 1) aggregated.value = list.value.slice()
-      else aggregated.value = [...aggregated.value, ...list.value]
+      if (page.value === 1) {
+        aggregated.value = deduplicatedList.slice()
+      } else {
+        // 合并时也要去重
+        const existingIds = new Set(aggregated.value.map(item => item.identity))
+        const newItems = deduplicatedList.filter(item => !existingIds.has(item.identity))
+        aggregated.value = [...aggregated.value, ...newItems]
+      }
     }
+    
     const maxPage = Math.max(1, Math.ceil(total.value / pageSize.value))
     if (page.value > maxPage) {
       page.value = maxPage
       await refresh()
       return
     }
+    
   } catch (e: any) {
-    error.value = e?.message || '加载失败'
+    // 只有当前请求出错才显示错误
+    if (requestId === lastRequestId.value) {
+      error.value = e?.message || '加载失败'
+      console.error('文件列表加载失败:', e)
+    }
   } finally {
     loading.value = false
+    // 延迟释放锁，防止短时间内重复请求
+    setTimeout(() => {
+      if (requestId === lastRequestId.value) {
+        refreshLock.value = false
+      }
+    }, 300)
   }
 }
 
@@ -458,32 +546,71 @@ onMounted(() => {
       currentFolderId.value = 0
     }
   }
-  if (supported.value) refresh()
+  
+  if (supported.value) {
+    // 组件挂载后延迟执行首次加载，避免与其他初始化冲突
+    setTimeout(() => {
+      refresh()
+    }, 50)
+  }
+  
   if (typeof IntersectionObserver !== 'undefined') {
     sentinelObserver = new IntersectionObserver(async (entries) => {
-      if (!infiniteMode.value) return
+      if (!infiniteMode.value || refreshLock.value) return
       const entry = entries[0]
       if (entry && entry.isIntersecting && !loading.value) {
         if (list.value.length === 0) return
         if (aggregated.value.length >= total.value) return
         page.value += 1
+        // 滚动加载使用立即执行
         await refresh()
       }
     })
   }
 })
 
+// 组件卸载时清理资源
+onUnmounted(() => {
+  if (debounceTimer.value) {
+    clearTimeout(debounceTimer.value)
+    debounceTimer.value = null
+  }
+  
+  if (sentinelObserver) {
+    sentinelObserver.disconnect()
+    sentinelObserver = null
+  }
+  
+  // 重置状态
+  refreshLock.value = false
+  lastRequestId.value = 0
+})
+
 watch(infiniteMode, async (value) => {
+  // 清理聚合数据
   aggregated.value = []
   page.value = 1
+  
+  // 立即执行刷新
   await refresh()
-  if (value && sentinelRef.value && sentinelObserver) sentinelObserver.observe(sentinelRef.value)
-  else if (sentinelObserver && sentinelRef.value) sentinelObserver.unobserve(sentinelRef.value)
+  
+  // 管理观察器
+  if (sentinelObserver) {
+    if (sentinelRef.value) {
+      if (value) {
+        sentinelObserver.observe(sentinelRef.value)
+      } else {
+        sentinelObserver.unobserve(sentinelRef.value)
+      }
+    }
+  }
 })
 
 watch(() => sentinelRef.value, (el) => {
-  if (!infiniteMode.value) return
-  if (sentinelObserver && el) sentinelObserver.observe(el)
+  if (!infiniteMode.value || !sentinelObserver) return
+  if (el) {
+    sentinelObserver.observe(el)
+  }
 })
 </script>
 

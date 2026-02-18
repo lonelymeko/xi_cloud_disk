@@ -109,7 +109,7 @@ onMounted(async () => {
         <LayoutHeader :user-name="userName" @search="onSearch" @logout="onLogout" @open-profile="onOpenProfile" />
         <SidebarLeft :active="activeNav" @select="onSelectNav" />
         <div class="pt-16 pl-64 h-[calc(100vh-4rem)]">
-          <MainArea :active="activeNav" :user-name="userName" :user-email="userEmail" :search="searchText" :refresh-key="uploadSignal" @open-upload="onOpenUpload" @refresh-user="onLoggedIn" @logout="onLogout" />
+          <MainArea :key="`${activeNav}-${uploadSignal}`" :active="activeNav" :user-name="userName" :user-email="userEmail" :search="searchText" :refresh-key="uploadSignal" @open-upload="onOpenUpload" @refresh-user="onLoggedIn" @logout="onLogout" />
         </div>
         <UploadModal :visible="showUpload" :parent-id="uploadParentId" @close="showUpload=false" @uploaded="onUploaded" />
       </template>

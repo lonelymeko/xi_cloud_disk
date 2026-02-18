@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import type { UserFile } from '../lib/api'
 
 const props = defineProps<{ items: UserFile[]; view: 'detail' | 'medium' | 'large'; sortKey: 'name' | 'type' | 'size' | 'updated'; sortOrder: 'asc' | 'desc' }>()
@@ -73,6 +73,20 @@ function getTypeMeta(ext: string) {
   return { label: '文件', icon: 'fa-file-o', color: 'text-gray-500', bg: 'bg-gray-50' }
 }
 
+// 添加调试信息
+watch(() => props.items, (newItems) => {
+  const folderCount = newItems.filter(isFolder).length
+  const fileCount = newItems.length - folderCount
+  console.log(`FileList 更新: 总计 ${newItems.length} 项 (${folderCount} 个文件夹, ${fileCount} 个文件)`)
+  
+  // 检查重复项
+  const identities = newItems.map(item => item.identity)
+  const uniqueIdentities = new Set(identities)
+  if (identities.length !== uniqueIdentities.size) {
+    console.warn('发现重复的文件标识:', identities.filter((id, index) => identities.indexOf(id) !== index))
+  }
+}, { immediate: true })
+
 function getItemMeta(item: UserFile) {
   if (isFolder(item)) {
     return { label: '文件夹', icon: 'fa-folder', color: 'text-yellow-500', bg: 'bg-yellow-50' }
@@ -82,7 +96,7 @@ function getItemMeta(item: UserFile) {
 </script>
 
 <template>
-  <div class="bg-white rounded-xl shadow-card">
+  <div class="bg-white rounded-xl shadow-card" :key="`${props.view}-${props.sortKey}-${props.sortOrder}`">
     <div v-show="props.view === 'detail'" class="hidden md:grid grid-cols-12 gap-4 px-6 py-3 border-b border-gray-light text-sm font-medium text-gray-medium">
       <button class="col-span-5 flex items-center gap-2 text-left" @click="emit('change-sort', 'name')">
         <span>文件名</span>
