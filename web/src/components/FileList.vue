@@ -82,7 +82,7 @@ function getItemMeta(item: UserFile) {
 </script>
 
 <template>
-  <div class="bg-white rounded-xl shadow-card overflow-hidden">
+  <div class="bg-white rounded-xl shadow-card">
     <div v-show="props.view === 'detail'" class="hidden md:grid grid-cols-12 gap-4 px-6 py-3 border-b border-gray-light text-sm font-medium text-gray-medium">
       <button class="col-span-5 flex items-center gap-2 text-left" @click="emit('change-sort', 'name')">
         <span>文件名</span>

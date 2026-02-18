@@ -284,7 +284,7 @@ func (c *Consumer) processFile(body []byte) (err error) {
 			Size:      actualSize,
 			Path:      OssPath,
 			ObjectKey: OssPath,
-			Identity:  utils.UUID(),
+			Identity:  task.RepositoryIdentity,
 		}
 		_, err = c.svcCtx.DBEngine.Insert(rp)
 		if err != nil {
@@ -308,6 +308,7 @@ func (c *Consumer) InsertInToUserRepository(userIdentity, repositoryIdentity, ex
 		ParentId:           parentId,
 		Ext:                ext,
 		Name:               name,
+		Status:             common.StatusActive,
 	}
 	_, err = c.svcCtx.DBEngine.Insert(ur)
 	if err != nil {

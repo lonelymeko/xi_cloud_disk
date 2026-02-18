@@ -135,6 +135,15 @@ func UploadFileHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			httpx.ErrorCtx(r.Context(), w, err)
 			return
 		}
+
+		// 如果文件信息存在：
+		if has {
+			l := logic.NewUploadFileLogic(r.Context(), svcCtx)
+			resp, err := l.UploadFile(&req, has, rp.Identity, tempFile.Name(), hash)
+			common.Response(r, w, resp, err)
+			return
+		}
+
 		// 不存在
 		identity := utils.UUID()
 		l := logic.NewUploadFileLogic(r.Context(), svcCtx)
