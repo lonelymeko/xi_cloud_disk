@@ -364,10 +364,12 @@ export async function createShare(repositoryIdentity: string, expiredTime: numbe
   return json.data
 }
 
-export async function getShare(identity: string): Promise<ShareDetailResp> {
+export async function getShare(identity: string,token: string): Promise<ShareDetailResp> {
   const url = new URL(`${API_BASE}/api/share/get`)
   url.searchParams.set('identity', identity)
-  const res = await fetch(url.toString(), { method: 'GET' })
+  const res = await fetch(url.toString(), { method: 'GET' ,
+  headers: withAuth(token)
+  })
   if (!res.ok) {
     const json = (await res.json().catch(() => null)) as ApiResp<ShareDetailResp> | null
     if (json?.msg) throw new Error(json.msg)

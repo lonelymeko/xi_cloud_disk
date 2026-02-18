@@ -113,6 +113,10 @@ service core-api {
 	// 用户文件移动
 	@handler UserFileMoveHandler
 	put /user/file/move (UserFileMoveRequest) returns (UserFileMoveResponse)
+
+	// 获取文件下载链接
+	@handler DownloadUrlHandler
+	post /url (DownloadURLRequest) returns (DownloadURLResponse)
 }
 
 @server (
@@ -131,6 +135,10 @@ service core-api {
 	// 资源保存
 	@handler SaveResourceHandler
 	post /save (SaveResourceRequest) returns (SaveResourceResponse)
+
+	// 获取分享下载链接
+	@handler ShareDownloadUrlHandler
+	get /download (ShareDownloadURLRequest) returns (ShareDownloadURLResponse)
 }
 
 type UploadFileRequest {
@@ -198,6 +206,16 @@ type UserFileMoveRequest {
 
 type UserFileMoveResponse {}
 
+type DownloadURLRequest {
+	RepositoryIdentity string `json:"repository_identity"`
+	Expires            int    `json:"expires"`
+}
+
+type DownloadURLResponse {
+	URL     string `json:"url"`
+	Expires int    `json:"expires"`
+}
+
 type CreateShareRecordRequest {
 	Identity    string `json:"identity"`
 	ExpiredTime int    `json:"expired_time"`
@@ -208,7 +226,7 @@ type CreateShareRecordResponse {
 }
 
 type GetShareRecordRequest {
-	Identity string `json:"identity"`
+	Identity string `form:"identity"`
 }
 
 type GetShareRecordResponse {
@@ -226,5 +244,15 @@ type SaveResourceRequest {
 
 type SaveResourceResponse {
 	Identity string `json:"identity"`
+}
+
+type ShareDownloadURLRequest {
+	ShareIdentity string `json:"share_identity"`
+	Expires       int    `json:"expires"`
+}
+
+type ShareDownloadURLResponse {
+	URL     string `json:"url"`
+	Expires int    `json:"expires"`
 }
 

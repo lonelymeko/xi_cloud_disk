@@ -466,6 +466,15 @@ npx redoc-cli serve core/docs/api/file.yaml
 
 ## 🔧 开发指南
 
+### API 接口更新
+
+修改 `core/core.api` 文件后，需要重新生成代码：
+
+```bash
+cd core
+goctl api go -api core.api -dir . --style go_zero
+```
+
 ### 生成代码
 
 ```bash

@@ -25,7 +25,9 @@ async function loadDetail() {
   loading.value = true
   error.value = ''
   try {
-    const d = await getShare(shareIdentity)
+    const token = getToken()?.toString()
+    if (!token) return
+    const d = await getShare(shareIdentity, token)
     detail.value = d
     name.value = d.name
   } catch (e: any) {

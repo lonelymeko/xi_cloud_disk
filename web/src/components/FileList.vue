@@ -83,11 +83,6 @@ function getItemMeta(item: UserFile) {
 
 <template>
   <div class="bg-white rounded-xl shadow-card">
-    <!-- 调试信息 -->
-    <div v-if="false" class="p-2 text-xs text-gray-500 bg-yellow-50">
-      调试: items.length={{ props.items.length }}, unique={{ new Set(props.items.map(i => i.identity)).size }}
-    </div>
-    
     <div v-show="props.view === 'detail'" class="hidden md:grid grid-cols-12 gap-4 px-6 py-3 border-b border-gray-light text-sm font-medium text-gray-medium">
       <button class="col-span-5 flex items-center gap-2 text-left" @click="emit('change-sort', 'name')">
         <span>文件名</span>
@@ -109,12 +104,7 @@ function getItemMeta(item: UserFile) {
     </div>
     <div class="divide-y divide-gray-light">
       <div v-show="props.view !== 'detail'" class="grid gap-4 p-4" :class="gridClass">
-        <div 
-          v-for="item in props.items" 
-          :key="item.identity" 
-          class="bg-white rounded-xl border border-gray-light p-4 file-hover" 
-          @dblclick="isFolder(item) && emit('open', item)"
-        >
+        <div v-for="item in props.items" :key="item.identity" class="bg-white rounded-xl border border-gray-light p-4 file-hover" @dblclick="isFolder(item) && emit('open', item)">
           <div class="flex items-center justify-between mb-3">
             <div class="rounded-lg flex items-center justify-center" :class="iconBoxClass + ' ' + getItemMeta(item).bg + ' ' + getItemMeta(item).color">
               <i class="fa" :class="getItemMeta(item).icon + ' ' + iconClass"></i>
@@ -150,11 +140,7 @@ function getItemMeta(item: UserFile) {
         </div>
       </div>
       <div v-show="props.view === 'detail'">
-        <div 
-          v-for="item in props.items" 
-          :key="item.identity" 
-          class="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-gray-50"
-        >
+        <div v-for="item in props.items" :key="item.identity" class="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-gray-50">
           <div class="col-span-5 flex items-center gap-3">
             <div class="w-10 h-10 rounded-lg flex items-center justify-center" :class="getItemMeta(item).bg + ' ' + getItemMeta(item).color">
               <i class="fa" :class="getItemMeta(item).icon"></i>
