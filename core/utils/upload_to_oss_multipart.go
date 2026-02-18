@@ -23,7 +23,7 @@ func UploadToOSSMultipart(filePath string, originalFilename string, fileSize int
 	key := UUID() + path.Ext(originalFilename)
 
 	if err := ossLoadEnv(); err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to load env: %w", err)
 	}
 	var (
 		region     = OSSRegionValue()

@@ -136,7 +136,10 @@ function isFolder(item: UserFile) {
 
 const filtered = computed(() => {
   const keyword = props.search?.trim()
-  let items = list.value.slice()
+  // 使用 Set 去重，避免重复数据
+  const uniqueItems = Array.from(new Map(list.value.map(item => [item.identity, item])).values())
+  let items = uniqueItems.slice()
+  
   if (keyword) items = items.filter((item) => item.name.includes(keyword))
   if (props.active === '图片') {
     items = items.filter((item) => ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].includes(item.ext?.toLowerCase()))
@@ -155,7 +158,19 @@ const filtered = computed(() => {
 const files = computed(() => filtered.value.filter((item) => !isFolder(item)))
 
 const sortedItems = computed(() => {
-  const data = filtered.value.slice()
+  // 先去重再排序
+  const uniqueData = Array.from(new Map(filtered.value.map(item => [item.identity, item])).values())
+  const data = uniqueData.slice()
+  
+  // 调试信息
+  if (data.length !== uniqueData.length) {
+    console.warn('排序前发现重复数据:', {
+      originalLength: filtered.value.length,
+      uniqueLength: uniqueData.length,
+      sortedLength: data.length
+    })
+  }
+  
   data.sort((a, b) => {
     const aFolder = isFolder(a)
     const bFolder = isFolder(b)
@@ -243,12 +258,35 @@ async function refresh() {
     } else {
       data = await getUserFileList(currentFolderId.value, page.value, pageSize.value, token)
     }
-    list.value = data.list || []
+    
+    // 数据去重处理
+    const uniqueList = Array.from(new Map((data.list || []).map(item => [item.identity, item])).values())
+    
+    // 调试信息
+    console.log('刷新数据:', {
+      source: source.value,
+      page: page.value,
+      originalCount: (data.list || []).length,
+      uniqueCount: uniqueList.length,
+      infiniteMode: infiniteMode.value,
+      aggregatedLength: aggregated.value.length
+    })
+    
+    list.value = uniqueList
     total.value = data.count || 0
+    
     if (infiniteMode.value) {
-      if (page.value === 1) aggregated.value = list.value.slice()
-      else aggregated.value = [...aggregated.value, ...list.value]
+      if (page.value === 1) {
+        // 第一页时清空聚合数据
+        aggregated.value = uniqueList.slice()
+      } else {
+        // 后续页面合并时也要去重
+        const combined = [...aggregated.value, ...uniqueList]
+        aggregated.value = Array.from(new Map(combined.map(item => [item.identity, item])).values())
+      }
+      console.log('滚动加载模式聚合数据长度:', aggregated.value.length)
     }
+    
     const maxPage = Math.max(1, Math.ceil(total.value / pageSize.value))
     if (page.value > maxPage) {
       page.value = maxPage
@@ -474,11 +512,15 @@ onMounted(() => {
 })
 
 watch(infiniteMode, async (value) => {
+  // 切换模式时清空聚合数据并重置
   aggregated.value = []
   page.value = 1
   await refresh()
-  if (value && sentinelRef.value && sentinelObserver) sentinelObserver.observe(sentinelRef.value)
-  else if (sentinelObserver && sentinelRef.value) sentinelObserver.unobserve(sentinelRef.value)
+  if (value && sentinelRef.value && sentinelObserver) {
+    sentinelObserver.observe(sentinelRef.value)
+  } else if (sentinelObserver && sentinelRef.value) {
+    sentinelObserver.unobserve(sentinelRef.value)
+  }
 })
 
 watch(() => sentinelRef.value, (el) => {
@@ -526,7 +568,19 @@ watch(() => sentinelRef.value, (el) => {
           </button>
         </div>
         <div v-if="(infiniteMode ? aggregated.length : sortedItems.length) === 0" class="bg-white rounded-xl shadow-card p-6 text-sm text-gray-medium">暂无内容</div>
-        <FileList v-else :items="infiniteMode ? aggregated : sortedItems" :view="view" :sort-key="sortKey" :sort-order="sortOrder" @download="onDownload" @rename="openRename" @delete="openDelete" @open="onOpenFolder" @change-sort="onChangeSort" @share="openShare" />
+        <FileList 
+          v-else 
+          :items="infiniteMode ? aggregated : sortedItems" 
+          :view="view" 
+          :sort-key="sortKey" 
+          :sort-order="sortOrder" 
+          @download="onDownload" 
+          @rename="openRename" 
+          @delete="openDelete" 
+          @open="onOpenFolder" 
+          @change-sort="onChangeSort" 
+          @share="openShare" 
+        />
         <div v-if="infiniteMode" ref="sentinelRef" class="h-8"></div>
         <div v-if="!infiniteMode && sortedItems.length > 0" class="flex flex-wrap items-center justify-between gap-3 mt-4">
           <div class="text-sm text-gray-medium">共 {{ total }} 项 · 第 {{ page }} / {{ pageCount }} 页</div>

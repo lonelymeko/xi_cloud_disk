@@ -33,7 +33,10 @@ var configFile = flag.String("f", "core/etc/core-api.yaml", "the config file")
 func main() {
 	flag.Parse()
 
-	_ = godotenv.Load(".env")
+	err := godotenv.Load(".env")
+	if err != nil {
+		panic(err)
+	}
 	switch strings.ToLower(os.Getenv("LOG_LEVEL")) {
 	case "debug":
 		logx.SetLevel(logx.DebugLevel)

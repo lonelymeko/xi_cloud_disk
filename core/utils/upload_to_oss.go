@@ -67,7 +67,7 @@ func OSSUpload() func(region, bucket, key string, body io.Reader) (string, error
 func UploadToOSS(fileReader io.Reader, originalFilename string) (string, error) {
 	key := ossKeyGen(originalFilename)
 	if err := ossLoadEnv(); err != nil {
-		panic(err)
+		return "", fmt.Errorf("failed to load env: %w", err)
 	}
 	var (
 		region     = OSSRegionValue()
