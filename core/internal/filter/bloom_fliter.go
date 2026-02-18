@@ -122,7 +122,7 @@ func (b *MyBloomFilter) batchAddKeys(eng *xorm.Engine) error {
 		log.Println("数据库中暂无文件hash信息")
 		return nil
 	}
-
+	b.mutex.Lock()
 	// 批量添加到布隆过滤器
 	for _, hash := range hashs {
 		if hash != "" { // 过滤空值
@@ -130,7 +130,7 @@ func (b *MyBloomFilter) batchAddKeys(eng *xorm.Engine) error {
 			fmt.Printf("已添加hash到布隆过滤器: %s\n", hash)
 		}
 	}
-
+	b.mutex.Unlock()
 	log.Printf("成功从数据库加载 %d 个hash到布隆过滤器\n", len(hashs))
 	return nil
 }

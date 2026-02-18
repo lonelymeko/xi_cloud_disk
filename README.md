@@ -605,7 +605,7 @@ xorm reverse mysql "root:password@tcp(127.0.0.1:3306)/cloud_disk?charset=utf8mb4
 
 ### 高优先级
 
-- [ ] **WebSocket 实时进度推送**：实时推送文件上传/处理进度给客户端
+- [ ] **SSE 实时进度推送**：实时推送文件上传/处理进度给客户端
 - [ ] **文件夹下载**：异步任务 + 后台打包（详见 `docs/文件夹下载方案.md`）
 - [ ] **死信队列**：RabbitMQ 配置死信队列处理失败任务
 - [ ] **Redis 缓存优化**：缓存文件列表 COUNT 结果
