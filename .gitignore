@@ -52,3 +52,4 @@ coverage.html
 # 临时控制git
 web/demo/
 reference-project/
+core/bloom_filter.data
