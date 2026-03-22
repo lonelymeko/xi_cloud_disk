@@ -57,3 +57,5 @@ web/src/**/*.vue.js
 web/demo/
 reference-project/
 core/bloom_filter.data
+docs/nginx-www.xixiu.top-cloud-disk.conf
+.gitignore

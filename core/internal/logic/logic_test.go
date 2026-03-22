@@ -307,7 +307,7 @@ func TestUserDetail(t *testing.T) {
 func TestUploadFile(t *testing.T) {
 	env := newTestEnv(t)
 	logic := NewUploadFileLogic(env.ctx, env.svc)
-	resp, err := logic.UploadFile(&types.UploadFileRequest{Name: "a.txt", Hash: "h", Ext: ".txt", Size: 10, ObjectKey: "k", ParentId: 0}, false, "", "/tmp/a.txt", "h")
+	resp, err := logic.UploadFile(&types.UploadFileRequest{Name: "a.txt", Hash: "h", Ext: ".txt", Size: 10, ParentId: 0}, false, "", "/tmp/a.txt", "h")
 	if env.svc.RabbitMQConn == nil {
 		if err == nil {
 			t.Fatal("expected error")
