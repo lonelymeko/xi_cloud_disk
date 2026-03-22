@@ -1,6 +1,6 @@
 # 玺云盘 ☁️
 
-> 基于 Go-Zero + MySQL + Redis + Aliyun OSS / Volcengine TOS 的轻量级云盘系统
+> 基于 Go-Zero + MySQL + Redis + RabbitMQ + Aliyun OSS / Volcengine TOS 的轻量级云盘系统
 
 > 前端试用地址：https://www.xixiu.top
 
