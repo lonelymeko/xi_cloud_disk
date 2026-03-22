@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import FileBreadcrumb from './FileBreadcrumb.vue'
 import FileToolbar from './FileToolbar.vue'
 import FileList from './FileList.vue'
-import { createFolder, deleteUserItem, getDownloadUrl, getUserFileList, renameUserFile, createShare, getShareUrl, type UserFile } from '../lib/api'
+import { createFolder, deleteUserItem, getDownloadUrl, getUserFileList, renameUserFile, createShare, type UserFile } from '../lib/api'
 import { getToken } from '../lib/auth'
 
 type Crumb = { id: number; name: string }
@@ -48,8 +48,41 @@ const shareError = ref('')
 const shareExpired = ref(0)
 const shareIdentity = ref('')
 const shareLink = ref('')
-const videoDirectURL = ref('')
-const videoUrlError = ref('')
+const toastMessage = ref('')
+const toastType = ref<'success' | 'error'>('success')
+let toastTimer: ReturnType<typeof setTimeout> | null = null
+
+function showToast(message: string, type: 'success' | 'error' = 'success') {
+  toastMessage.value = message
+  toastType.value = type
+  if (toastTimer) clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => {
+    toastMessage.value = ''
+    toastTimer = null
+  }, 1800)
+}
+
+async function copyText(value: string): Promise<boolean> {
+  if (!value) return false
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value)
+      return true
+    }
+    const el = document.createElement('textarea')
+    el.value = value
+    el.style.position = 'fixed'
+    el.style.opacity = '0'
+    document.body.appendChild(el)
+    el.focus()
+    el.select()
+    const ok = document.execCommand('copy')
+    document.body.removeChild(el)
+    return ok
+  } catch {
+    return false
+  }
+}
 
 function buildShareLink(identity: string) {
   const base = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '/')
@@ -60,6 +93,16 @@ function isVideoFile(item: UserFile | null) {
   if (!item) return false
   const ext = (item.ext || '').toLowerCase()
   return ['.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv', '.webm', '.m4v'].includes(ext)
+}
+
+function isImageFile(item: UserFile | null) {
+  if (!item) return false
+  const ext = (item.ext || '').toLowerCase()
+  return ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].includes(ext)
+}
+
+function supportsDirectUrlCopy(item: UserFile | null) {
+  return isVideoFile(item) || isImageFile(item)
 }
 
 type MockNode = UserFile & { parent_id: number }
@@ -251,15 +294,22 @@ function formatSize(size: number) {
   return `${(size / 1024 / 1024 / 1024).toFixed(1)}GB`
 }
 
+function recordKey(file: UserFile): string {
+  if (file.id && file.id > 0) return `id:${file.id}`
+  if (file.identity && file.identity.trim()) return `identity:${file.identity}`
+  return `fallback:${file.name || ''}:${file.updated_at || ''}:${file.repository_identity || ''}`
+}
+
 // 数据去重函数
 function deduplicateFiles(files: UserFile[]): UserFile[] {
   const seen = new Set<string>()
   return files.filter(file => {
-    if (seen.has(file.identity)) {
-      console.warn('发现重复文件:', file.identity, file.name)
+    const key = recordKey(file)
+    if (seen.has(key)) {
+      console.warn('发现重复文件:', key, file.name)
       return false
     }
-    seen.add(file.identity)
+    seen.add(key)
     return true
   })
 }
@@ -333,8 +383,8 @@ async function refresh() {
         aggregated.value = deduplicatedList.slice()
       } else {
         // 合并时也要去重
-        const existingIds = new Set(aggregated.value.map(item => item.identity))
-        const newItems = deduplicatedList.filter(item => !existingIds.has(item.identity))
+        const existingIds = new Set(aggregated.value.map(item => recordKey(item)))
+        const newItems = deduplicatedList.filter(item => !existingIds.has(recordKey(item)))
         aggregated.value = [...aggregated.value, ...newItems]
       }
     }
@@ -449,8 +499,6 @@ function openShare(item: UserFile) {
   shareLink.value = ''
   shareError.value = ''
   shareExpired.value = 0
-  videoDirectURL.value = ''
-  videoUrlError.value = ''
   shareOpen.value = true
 }
 
@@ -461,12 +509,10 @@ function closeShare() {
 
 function copyShareLink() {
   if (!shareLink.value) return
-  if (navigator.clipboard) navigator.clipboard.writeText(shareLink.value)
-}
-
-function copyVideoDirectURL() {
-  if (!videoDirectURL.value) return
-  if (navigator.clipboard) navigator.clipboard.writeText(videoDirectURL.value)
+  copyText(shareLink.value).then((ok) => {
+    if (ok) showToast('分享链接已复制', 'success')
+    else showToast('复制失败，请手动复制', 'error')
+  })
 }
 
 function saveShareRecord(record: { identity: string; repository_identity: string; name: string; ext: string; size: number; created_at: string }) {
@@ -492,20 +538,6 @@ async function submitShare() {
     const data = await createShare(shareTarget.value.repository_identity, Math.max(0, Number(shareExpired.value) || 0), token)
     shareIdentity.value = data.identity
     shareLink.value = buildShareLink(data.identity)
-    videoDirectURL.value = ''
-    videoUrlError.value = ''
-
-    if (isVideoFile(shareTarget.value)) {
-      try {
-        const shareURL = await getShareUrl(data.identity, Math.max(0, Number(shareExpired.value) || 0))
-        videoDirectURL.value = shareURL.url || ''
-        if (!videoDirectURL.value) {
-          videoUrlError.value = '视频直链为空，请稍后重试'
-        }
-      } catch (e: any) {
-        videoUrlError.value = e?.message || '获取视频直链失败'
-      }
-    }
 
     saveShareRecord({
       identity: data.identity,
@@ -531,6 +563,24 @@ async function onDownload(item: UserFile) {
     window.open(data.url, '_blank')
   } catch (e: any) {
     error.value = e?.message || '下载失败'
+  }
+}
+
+async function onCopyDirectUrl(item: UserFile) {
+  if (!item.repository_identity || !supportsDirectUrlCopy(item)) return
+  const token = getToken()
+  if (!token) return
+  try {
+    const data = await getDownloadUrl(item.repository_identity, 3600, token)
+    const url = data.url || ''
+    if (!url) throw new Error('直链为空')
+    const ok = await copyText(url)
+    if (!ok) throw new Error('复制失败，请手动复制')
+    showToast('文件直链已复制', 'success')
+  } catch (e: any) {
+    const msg = e?.message || '复制直链失败'
+    error.value = msg
+    showToast(msg, 'error')
   }
 }
 
@@ -619,6 +669,10 @@ onUnmounted(() => {
   // 重置状态
   refreshLock.value = false
   lastRequestId.value = 0
+  if (toastTimer) {
+    clearTimeout(toastTimer)
+    toastTimer = null
+  }
 })
 
 watch(infiniteMode, async (value) => {
@@ -688,7 +742,7 @@ watch(() => sentinelRef.value, (el) => {
           </button>
         </div>
         <div v-if="(infiniteMode ? aggregated.length : sortedItems.length) === 0" class="bg-white rounded-xl shadow-card p-6 text-sm text-gray-medium">暂无内容</div>
-        <FileList v-else :items="infiniteMode ? aggregated : sortedItems" :view="view" :sort-key="sortKey" :sort-order="sortOrder" @download="onDownload" @rename="openRename" @delete="openDelete" @open="onOpenFolder" @change-sort="onChangeSort" @share="openShare" />
+        <FileList v-else :items="infiniteMode ? aggregated : sortedItems" :view="view" :sort-key="sortKey" :sort-order="sortOrder" @download="onDownload" @copy-direct-url="onCopyDirectUrl" @rename="openRename" @delete="openDelete" @open="onOpenFolder" @change-sort="onChangeSort" @share="openShare" />
         <div v-if="infiniteMode" ref="sentinelRef" class="h-8"></div>
         <div v-if="!infiniteMode && sortedItems.length > 0" class="flex flex-wrap items-center justify-between gap-3 mt-4">
           <div class="text-sm text-gray-medium">共 {{ total }} 项 · 第 {{ page }} / {{ pageCount }} 页</div>
@@ -734,6 +788,14 @@ watch(() => sentinelRef.value, (el) => {
       </div>
     </div>
 
+    <div
+      v-if="toastMessage"
+      class="fixed right-6 top-6 z-[70] px-4 py-2 rounded-lg shadow-card text-sm"
+      :class="toastType === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'"
+    >
+      {{ toastMessage }}
+    </div>
+
     <div v-if="shareOpen" class="fixed inset-0 z-50 bg-black bg-opacity-40 flex items-center justify-center">
       <div class="bg-white rounded-lg shadow-card w-full max-w-sm p-6">
         <div class="text-lg font-semibold text-gray-800 mb-4">创建分享</div>
@@ -748,14 +810,6 @@ watch(() => sentinelRef.value, (el) => {
             <div class="flex items-center gap-2">
               <input class="flex-1 border border-gray-300 rounded px-3 py-2" :value="shareLink" readonly />
               <button class="btn-secondary" @click="copyShareLink">复制</button>
-            </div>
-            <div v-if="isVideoFile(shareTarget)" class="space-y-2">
-              <div class="text-sm">视频 URL</div>
-              <div class="flex items-center gap-2">
-                <input class="flex-1 border border-gray-300 rounded px-3 py-2" :value="videoDirectURL" readonly placeholder="创建分享后自动生成" />
-                <button class="btn-secondary" :disabled="!videoDirectURL" @click="copyVideoDirectURL">复制</button>
-              </div>
-              <p v-if="videoUrlError" class="text-red-600 text-sm">{{ videoUrlError }}</p>
             </div>
           </div>
         </div>

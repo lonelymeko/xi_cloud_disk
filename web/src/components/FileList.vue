@@ -5,6 +5,7 @@ import type { UserFile } from '../lib/api'
 const props = defineProps<{ items: UserFile[]; view: 'detail' | 'medium' | 'large'; sortKey: 'name' | 'type' | 'size' | 'updated'; sortOrder: 'asc' | 'desc' }>()
 const emit = defineEmits<{
   (e: 'download', item: UserFile): void
+  (e: 'copy-direct-url', item: UserFile): void
   (e: 'rename', item: UserFile): void
   (e: 'delete', item: UserFile): void
   (e: 'open', item: UserFile): void
@@ -39,6 +40,20 @@ function sortIcon(key: 'name' | 'type' | 'size' | 'updated') {
 
 function isFolder(item: UserFile) {
   return !item.repository_identity
+}
+
+function isVideo(item: UserFile) {
+  const lower = (item.ext || '').toLowerCase()
+  return ['.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv', '.webm', '.m4v'].includes(lower)
+}
+
+function isImage(item: UserFile) {
+  const lower = (item.ext || '').toLowerCase()
+  return ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].includes(lower)
+}
+
+function canCopyDirectUrl(item: UserFile) {
+  return isVideo(item) || isImage(item)
 }
 
 function getTypeMeta(ext: string) {
@@ -93,6 +108,12 @@ function getItemMeta(item: UserFile) {
   }
   return getTypeMeta(item.ext)
 }
+
+function itemKey(item: UserFile) {
+  if (item.id && item.id > 0) return `id:${item.id}`
+  if (item.identity && item.identity.trim()) return `identity:${item.identity}`
+  return `fallback:${item.name || ''}:${item.updated_at || ''}:${item.repository_identity || ''}`
+}
 </script>
 
 <template>
@@ -118,7 +139,7 @@ function getItemMeta(item: UserFile) {
     </div>
     <div class="divide-y divide-gray-light">
       <div v-show="props.view !== 'detail'" class="grid gap-4 p-4" :class="gridClass">
-        <div v-for="item in props.items" :key="item.identity" class="bg-white rounded-xl border border-gray-light p-4 file-hover" @dblclick="isFolder(item) && emit('open', item)">
+        <div v-for="item in props.items" :key="itemKey(item)" class="bg-white rounded-xl border border-gray-light p-4 file-hover" @dblclick="isFolder(item) && emit('open', item)">
           <div class="flex items-center justify-between mb-3">
             <div class="rounded-lg flex items-center justify-center" :class="iconBoxClass + ' ' + getItemMeta(item).bg + ' ' + getItemMeta(item).color">
               <i class="fa" :class="getItemMeta(item).icon + ' ' + iconClass"></i>
@@ -132,6 +153,10 @@ function getItemMeta(item: UserFile) {
                   <button v-if="!isFolder(item)" class="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50" @click="emit('download', item)">
                     <i class="fa fa-download w-5 text-gray-medium"></i>
                     <span>下载</span>
+                  </button>
+                  <button v-if="!isFolder(item) && canCopyDirectUrl(item)" class="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50" @click="emit('copy-direct-url', item)">
+                    <i class="fa fa-link w-5 text-gray-medium"></i>
+                    <span>复制直链 URL</span>
                   </button>
                   <button v-if="!isFolder(item)" class="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50" @click="emit('share', item)">
                     <i class="fa fa-share-alt w-5 text-gray-medium"></i>
@@ -154,7 +179,7 @@ function getItemMeta(item: UserFile) {
         </div>
       </div>
       <div v-show="props.view === 'detail'">
-        <div v-for="item in props.items" :key="item.identity" class="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-gray-50">
+        <div v-for="item in props.items" :key="itemKey(item)" class="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-gray-50">
           <div class="col-span-5 flex items-center gap-3">
             <div class="w-10 h-10 rounded-lg flex items-center justify-center" :class="getItemMeta(item).bg + ' ' + getItemMeta(item).color">
               <i class="fa" :class="getItemMeta(item).icon"></i>
@@ -179,6 +204,10 @@ function getItemMeta(item: UserFile) {
                   <button v-if="!isFolder(item)" class="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50" @click="emit('download', item)">
                     <i class="fa fa-download w-5 text-gray-medium"></i>
                     <span>下载</span>
+                  </button>
+                  <button v-if="!isFolder(item) && canCopyDirectUrl(item)" class="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50" @click="emit('copy-direct-url', item)">
+                    <i class="fa fa-link w-5 text-gray-medium"></i>
+                    <span>复制直链 URL</span>
                   </button>
                   <button v-if="!isFolder(item)" class="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50" @click="emit('share', item)">
                     <i class="fa fa-share-alt w-5 text-gray-medium"></i>
