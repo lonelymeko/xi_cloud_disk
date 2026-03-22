@@ -243,7 +243,7 @@ export async function uploadFile(file: File, parentId: number, token: string): P
     body: formData,
   })
   if (!res.ok) {
-    if (res.status === 413) throw new Error('文件过大，超过10GB限制')
+    if (res.status === 413) throw new Error('上传被拒绝(413)：文件大小超过网关或服务端限制，请检查 Nginx 的 client_max_body_size 与后端 MaxBytes 配置')
     const json = (await res.json().catch(() => null)) as ApiResp<UploadFileResp> | null
     if (json?.msg) throw new Error(json.msg)
     throw new Error(`HTTP ${res.status}`)
@@ -365,9 +365,8 @@ export async function createShare(repositoryIdentity: string, expiredTime: numbe
 }
 
 export async function getShare(identity: string,token: string): Promise<ShareDetailResp> {
-  const url = new URL(`${API_BASE}/api/share/get`)
-  url.searchParams.set('identity', identity)
-  const res = await fetch(url.toString(), { method: 'GET' ,
+  const url = `${API_BASE}/api/share/get?identity=${encodeURIComponent(identity)}`
+  const res = await fetch(url, { method: 'GET' ,
   headers: withAuth(token)
   })
   if (!res.ok) {

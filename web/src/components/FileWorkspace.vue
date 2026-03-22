@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import FileBreadcrumb from './FileBreadcrumb.vue'
 import FileToolbar from './FileToolbar.vue'
 import FileList from './FileList.vue'
-import { createFolder, deleteUserItem, getDownloadUrl, getUserFileList, renameUserFile, createShare, type UserFile } from '../lib/api'
+import { createFolder, deleteUserItem, getDownloadUrl, getUserFileList, renameUserFile, createShare, getShareUrl, type UserFile } from '../lib/api'
 import { getToken } from '../lib/auth'
 
 type Crumb = { id: number; name: string }
@@ -13,7 +13,7 @@ const emit = defineEmits<{ (e: 'open-upload', parentId: number): void }>()
 
 // 防重复请求控制
 const refreshLock = ref(false)
-const debounceTimer = ref<NodeJS.Timeout | null>(null)
+const debounceTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 const lastRequestId = ref(0)
 
 const loading = ref(false)
@@ -48,6 +48,19 @@ const shareError = ref('')
 const shareExpired = ref(0)
 const shareIdentity = ref('')
 const shareLink = ref('')
+const videoDirectURL = ref('')
+const videoUrlError = ref('')
+
+function buildShareLink(identity: string) {
+  const base = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '/')
+  return `${location.origin}${base}s/${identity}`
+}
+
+function isVideoFile(item: UserFile | null) {
+  if (!item) return false
+  const ext = (item.ext || '').toLowerCase()
+  return ['.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv', '.webm', '.m4v'].includes(ext)
+}
 
 type MockNode = UserFile & { parent_id: number }
 const mockNodes = ref<MockNode[]>([
@@ -436,6 +449,8 @@ function openShare(item: UserFile) {
   shareLink.value = ''
   shareError.value = ''
   shareExpired.value = 0
+  videoDirectURL.value = ''
+  videoUrlError.value = ''
   shareOpen.value = true
 }
 
@@ -447,6 +462,11 @@ function closeShare() {
 function copyShareLink() {
   if (!shareLink.value) return
   if (navigator.clipboard) navigator.clipboard.writeText(shareLink.value)
+}
+
+function copyVideoDirectURL() {
+  if (!videoDirectURL.value) return
+  if (navigator.clipboard) navigator.clipboard.writeText(videoDirectURL.value)
 }
 
 function saveShareRecord(record: { identity: string; repository_identity: string; name: string; ext: string; size: number; created_at: string }) {
@@ -471,7 +491,22 @@ async function submitShare() {
   try {
     const data = await createShare(shareTarget.value.repository_identity, Math.max(0, Number(shareExpired.value) || 0), token)
     shareIdentity.value = data.identity
-    shareLink.value = `${location.origin}/s/${data.identity}`
+    shareLink.value = buildShareLink(data.identity)
+    videoDirectURL.value = ''
+    videoUrlError.value = ''
+
+    if (isVideoFile(shareTarget.value)) {
+      try {
+        const shareURL = await getShareUrl(data.identity, Math.max(0, Number(shareExpired.value) || 0))
+        videoDirectURL.value = shareURL.url || ''
+        if (!videoDirectURL.value) {
+          videoUrlError.value = '视频直链为空，请稍后重试'
+        }
+      } catch (e: any) {
+        videoUrlError.value = e?.message || '获取视频直链失败'
+      }
+    }
+
     saveShareRecord({
       identity: data.identity,
       repository_identity: shareTarget.value.repository_identity,
@@ -713,6 +748,14 @@ watch(() => sentinelRef.value, (el) => {
             <div class="flex items-center gap-2">
               <input class="flex-1 border border-gray-300 rounded px-3 py-2" :value="shareLink" readonly />
               <button class="btn-secondary" @click="copyShareLink">复制</button>
+            </div>
+            <div v-if="isVideoFile(shareTarget)" class="space-y-2">
+              <div class="text-sm">视频 URL</div>
+              <div class="flex items-center gap-2">
+                <input class="flex-1 border border-gray-300 rounded px-3 py-2" :value="videoDirectURL" readonly placeholder="创建分享后自动生成" />
+                <button class="btn-secondary" :disabled="!videoDirectURL" @click="copyVideoDirectURL">复制</button>
+              </div>
+              <p v-if="videoUrlError" class="text-red-600 text-sm">{{ videoUrlError }}</p>
             </div>
           </div>
         </div>

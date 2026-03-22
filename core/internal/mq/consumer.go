@@ -160,17 +160,17 @@ func (c *Consumer) processFile(body []byte) (err error) {
 			// 是视频文件，需要压缩
 			compressedFile, createErr := os.CreateTemp("", "compressed-*.mp4")
 			if createErr != nil {
-				return err
+				return createErr
 			}
 			compressedFilePath = compressedFile.Name()
 			// 注意：不在这里 defer，避免在秒传时也执行清理
 
 			// 使用 ffmpeg 压缩视频
-			_, compressErr := utils.CompressVideoWithFFmpeg(tempFile.Name(), compressedFile.Name(), 23, "128k")
+			_, compressErr := utils.CompressVideoWithFFmpeg(tempFile.Name(), compressedFile.Name(), 26, "96k")
 			if compressErr != nil {
 				compressedFile.Close()
 				os.Remove(compressedFilePath)
-				return err
+				return compressErr
 			}
 
 			// 使用压缩后的文件上传
@@ -182,7 +182,7 @@ func (c *Consumer) processFile(body []byte) (err error) {
 			if _, seekErr := uploadFile.Seek(0, 0); seekErr != nil {
 				compressedFile.Close()
 				os.Remove(compressedFilePath)
-				return err
+				return seekErr
 			}
 
 			// 获取压缩后的文件大小
@@ -190,7 +190,7 @@ func (c *Consumer) processFile(body []byte) (err error) {
 			if statErr != nil {
 				compressedFile.Close()
 				os.Remove(compressedFilePath)
-				return err
+				return statErr
 			}
 			actualSize = fileInfo.Size()
 		} else if imageExts[task.Ext] {
@@ -198,17 +198,17 @@ func (c *Consumer) processFile(body []byte) (err error) {
 			logx.Info("是图片文件，需要压缩")
 			compressedFile, createErr := os.CreateTemp("", "compressed-*"+task.Ext)
 			if createErr != nil {
-				return err
+				return createErr
 			}
 			compressedFilePath = compressedFile.Name()
 			tempCompressedPath := compressedFilePath
 			compressedFile.Close() // 先关闭，因为 CompressImage 会重新打开
 
-			// 使用图片压缩（最大 1920x1080，质量 85）
+			// 使用图片压缩（优先耗时，兼顾体积与质量）
 			compressErr := utils.CompressImage(tempFile.Name(), tempCompressedPath, &utils.ImageCompressOptions{
-				MaxWidth:  1920,
-				MaxHeight: 1080,
-				Quality:   85,
+				MaxWidth:  1600,
+				MaxHeight: 900,
+				Quality:   80,
 			})
 			if compressErr != nil {
 				os.Remove(tempCompressedPath)

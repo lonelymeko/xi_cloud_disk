@@ -49,6 +49,10 @@ vendor/
 coverage.out
 coverage.html
 
+# Vue-tsc generated artifacts
+web/src/**/*.js
+web/src/**/*.vue.js
+
 # 临时控制git
 web/demo/
 reference-project/

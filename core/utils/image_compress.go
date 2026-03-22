@@ -24,9 +24,9 @@ type ImageCompressOptions struct {
 
 // DefaultImageCompressOptions 默认图片压缩选项。
 var DefaultImageCompressOptions = ImageCompressOptions{
-	MaxWidth:  1920, // 最大宽度 1920px
-	MaxHeight: 1080, // 最大高度 1080px
-	Quality:   85,   // JPEG 质量 85
+	MaxWidth:  1600, // 优先处理速度与体积，默认缩小到 1600px
+	MaxHeight: 900,
+	Quality:   80, // JPEG 质量 80，明显减小体积且画质仍可接受
 }
 
 // CompressImage 压缩图片。
@@ -186,8 +186,8 @@ func calculateResizeSize(width, height, maxWidth, maxHeight int) (int, int) {
 // resizeImage 缩放图片。
 func resizeImage(src image.Image, width, height int) image.Image {
 	dst := image.NewRGBA(image.Rect(0, 0, width, height))
-	// 使用高质量的 Lanczos3 算法进行缩放
-	draw.CatmullRom.Scale(dst, dst.Bounds(), src, src.Bounds(), draw.Over, nil)
+	// 使用更快的缩放算法，降低 CPU 占用。
+	draw.ApproxBiLinear.Scale(dst, dst.Bounds(), src, src.Bounds(), draw.Over, nil)
 	return dst
 }
 

@@ -129,7 +129,7 @@ function doUpload(item: UploadItem, token: string) {
       if (xhr.status === 413) {
         item.status = 'error'
         item.progress = 0
-        item.message = '文件过大，超过10GB限制'
+        item.message = '上传被拒绝(413)：可能超过 Nginx/网关限制，请检查 client_max_body_size'
         resolve()
         return
       }

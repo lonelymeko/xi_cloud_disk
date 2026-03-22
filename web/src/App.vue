@@ -19,6 +19,11 @@ const uploadParentId = ref(0)
 const uploadSignal = ref(0)
 const shareRoute = ref(false)
 
+function getShareRoutePrefix() {
+  const base = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '/')
+  return `${base}s/`
+}
+
 async function loadUserFromToken(token: string) {
   const payload = getTokenPayload(token)
   const identity = payload?.Identity || payload?.identity
@@ -85,7 +90,7 @@ watch(activeNav, (value) => {
 
 onMounted(async () => {
   loadNavMemory()
-  shareRoute.value = (location.pathname || '').startsWith('/s/')
+  shareRoute.value = (location.pathname || '').startsWith(getShareRoutePrefix())
   const t = getToken()
   if (!t) {
     loggedIn.value = false

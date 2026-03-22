@@ -299,7 +299,8 @@ function loadShares() {
 }
 
 function copyShareLink(identity: string) {
-  const link = `${location.origin}/s/${identity}`
+  const base = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '/')
+  const link = `${location.origin}${base}s/${identity}`
   if (navigator.clipboard) navigator.clipboard.writeText(link)
 }
 </script>
