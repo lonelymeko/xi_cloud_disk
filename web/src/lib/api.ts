@@ -379,11 +379,16 @@ export async function getShare(identity: string,token: string): Promise<ShareDet
   return json.data
 }
 
-export async function getShareUrl(shareIdentity: string, expires: number): Promise<ShareURLResp> {
-  const res = await fetch(`${API_BASE}/api/share/url`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ share_identity: shareIdentity, expires }),
+export async function getShareUrl(shareIdentity: string, expires: number, token: string): Promise<ShareURLResp> {
+  const qs = new URLSearchParams({
+    share_identity: shareIdentity,
+    expires: String(expires),
+  })
+  const res = await fetch(`${API_BASE}/api/share/download?${qs.toString()}`, {
+    method: 'GET',
+    headers: {
+      ...withAuth(token),
+    },
   })
   if (!res.ok) {
     const json = (await res.json().catch(() => null)) as ApiResp<ShareURLResp> | null

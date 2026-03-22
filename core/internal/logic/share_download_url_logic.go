@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"strings"
 	"time"
 
 	"cloud_disk/core/common"
@@ -81,7 +83,7 @@ func (l *ShareDownloadURLLogic) ShareDownloadURL(req *types.ShareDownloadURLRequ
 	lockKey := "lock:" + cacheKey
 	locked, err := utils.AcquireLock(l.ctx, l.svcCtx.RedisClient, lockKey, 10*time.Second)
 	if err != nil {
-		url, genErr := utils.PresignGetObject(l.ctx, objectKey, time.Duration(expires)*time.Second)
+		url, genErr := l.presignByStorageType(objectKey, expires)
 		if genErr != nil {
 			return nil, genErr
 		}
@@ -102,7 +104,7 @@ func (l *ShareDownloadURLLogic) ShareDownloadURL(req *types.ShareDownloadURLRequ
 		return &types.ShareDownloadURLResponse{URL: url, Expires: expires}, nil
 	}
 
-	url, err := utils.PresignGetObject(l.ctx, objectKey, time.Duration(expires)*time.Second)
+	url, err := l.presignByStorageType(objectKey, expires)
 	if err != nil {
 		return nil, err
 	}
@@ -125,4 +127,16 @@ func getCachedShareURL(ctx context.Context, rdb svc.RedisClient, key string) (st
 // setCachedShareURL 写入缓存的分享下载链接。
 func setCachedShareURL(ctx context.Context, rdb svc.RedisClient, key, url string, expires int) {
 	_ = rdb.Set(ctx, key, url, time.Duration(expires)*time.Second).Err()
+}
+
+func (l *ShareDownloadURLLogic) presignByStorageType(objectKey string, expires int) (string, error) {
+	storageType := strings.ToLower(strings.TrimSpace(os.Getenv("STORAGE_TYPE")))
+	if storageType == "tos" {
+		storage, err := utils.GetStorage()
+		if err != nil {
+			return "", err
+		}
+		return storage.GetPresignedURL(l.ctx, objectKey, time.Duration(expires)*time.Second)
+	}
+	return utils.PresignGetObject(l.ctx, objectKey, time.Duration(expires)*time.Second)
 }

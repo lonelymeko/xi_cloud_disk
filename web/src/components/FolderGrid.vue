@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { UserFile } from '../lib/api'
+import type { UserFile } from '../lib/api.ts'
 
 const props = defineProps<{ folders: UserFile[] }>()
 const emit = defineEmits<{

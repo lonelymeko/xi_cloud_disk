@@ -6,7 +6,6 @@ package logic
 import (
 	"context"
 	"errors"
-	"time"
 
 	"cloud_disk/core/common"
 	"cloud_disk/core/internal/svc"
@@ -53,16 +52,15 @@ func (l *UserFileListLogic) UserFileList(req *types.UserFileListRequest) (resp *
 		return nil, errors.New("用户身份验证失败")
 	}
 
-	// 查询文件列表（修复 JOIN 条件和添加 name 字段）
+	// 查询文件列表。
+	// 关键：仅当 repository_identity 非空时才关联 repository_pool，避免文件夹（空 repository_identity）被重复 JOIN。
 	err = l.svcCtx.DBEngine.Table("user_repository").
 		Where("parent_id = ? AND user_identity = ?", req.Id, userIdentity).
 		Select("user_repository.id as id, user_repository.identity as identity, user_repository.name as name, "+
 			"user_repository.repository_identity as repository_identity, user_repository.ext as ext, "+
 			"repository_pool.size as size, user_repository.updated_at as updated_at").
-		Join("LEFT", "repository_pool", "user_repository.repository_identity = repository_pool.identity").
+		Join("LEFT", "repository_pool", "user_repository.repository_identity <> '' AND user_repository.repository_identity = repository_pool.identity").
 		Where("user_repository.status != ? OR user_repository.status IS NULL", common.StatusDeleted).
-		// 筛选出「从未被标记删除」或「删除标记被重置为零值」的user_repository数据，即「有效数据」。
-		Where("user_repository.deleted_at = ? OR user_repository.deleted_at IS NULL", time.Time{}.Format(common.DataTimeFormat)).
 		Limit(int(size), int(offset)).
 		Find(&uf)
 	if err != nil {

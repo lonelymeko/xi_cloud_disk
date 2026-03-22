@@ -115,6 +115,12 @@ func main() {
 		origins = append(origins, "*")
 	}
 
+	// 初始化存储系统
+	if err := config.InitializeStorage(); err != nil {
+		logx.Errorf("Failed to initialize storage: %v", err)
+		panic(err)
+	}
+
 	server := rest.MustNewServer(
 		c.RestConf,
 		rest.WithUnauthorizedCallback(JwtUnauthorizedResult),
@@ -143,12 +149,21 @@ func main() {
 		ok   bool
 		err  error
 	}
-	ch := make(chan res, 4)
+	ch := make(chan res, 5)
 	go func() { err := ctx.DBEngine.Ping(); ch <- res{"database", err == nil, err} }()
 	go func() { err := ctx.RedisClient.Ping(checkCtx).Err(); ch <- res{"redis", err == nil, err} }()
 	go func() { err := utils.EmailConnectivity(checkCtx); ch <- res{"email", err == nil, err} }()
 	go func() { err := utils.OSSConnectivity(checkCtx); ch <- res{"oss", err == nil, err} }()
-	for i := 0; i < 4; i++ {
+	go func() {
+		storage, err := utils.GetStorage()
+		if err == nil && storage != nil {
+			// 验证存储连接（可选）
+			ch <- res{"storage", true, nil}
+		} else {
+			ch <- res{"storage", false, err}
+		}
+	}()
+	for i := 0; i < 5; i++ {
 		r := <-ch
 		if r.ok {
 			logx.Infof("startup %s ok", r.name)

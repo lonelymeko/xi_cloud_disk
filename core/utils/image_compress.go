@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"golang.org/x/image/draw"
+	_ "golang.org/x/image/webp"
 )
 
 // ImageCompressOptions 图片压缩选项。

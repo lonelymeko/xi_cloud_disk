@@ -2,6 +2,8 @@ package logic
 
 import (
 	"context"
+	"os"
+	"strings"
 	"time"
 
 	"cloud_disk/core/common"
@@ -73,7 +75,7 @@ func purgeExpired(ctx context.Context, svcCtx *svc.ServiceContext) {
 			Where("identity = ?", repoID).
 			Update(map[string]any{"status": common.StatusPurging})
 		if objectKey != "" {
-			if err := utils.DeleteOSSObject(ctx, objectKey); err != nil {
+			if err := deleteByStorageType(ctx, objectKey); err != nil {
 				logx.Errorf("oss delete failed: %v", err)
 				continue
 			}
@@ -90,4 +92,16 @@ func purgeExpired(ctx context.Context, svcCtx *svc.ServiceContext) {
 			EventType:          common.EventPurge,
 		})
 	}
+}
+
+func deleteByStorageType(ctx context.Context, objectKey string) error {
+	storageType := strings.ToLower(strings.TrimSpace(os.Getenv("STORAGE_TYPE")))
+	if storageType == "tos" {
+		storage, err := utils.GetStorage()
+		if err != nil {
+			return err
+		}
+		return storage.DeleteObject(ctx, objectKey)
+	}
+	return utils.DeleteOSSObject(ctx, objectKey)
 }

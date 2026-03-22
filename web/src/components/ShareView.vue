@@ -42,7 +42,12 @@ async function loadUrl() {
   loading.value = true
   error.value = ''
   try {
-    const data = await getShareUrl(shareIdentity, Math.max(0, Number(expires.value) || 0))
+    const token = getToken()?.toString()
+    if (!token) {
+      error.value = '登录已失效'
+      return
+    }
+    const data = await getShareUrl(shareIdentity, Math.max(0, Number(expires.value) || 0), token)
     url.value = data.url
   } catch (e: any) {
     error.value = e?.message || '获取链接失败'
