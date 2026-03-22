@@ -1,6 +1,8 @@
 # 玺云盘 ☁️
 
-> 基于 Go-Zero + MySQL + Redis + Aliyun OSS 的轻量级云盘系统
+> 基于 Go-Zero + MySQL + Redis + Aliyun OSS / Volcengine TOS 的轻量级云盘系统
+
+> 前端试用地址：https://www.xixiu.top
 
 [![Go Version](https://img.shields.io/badge/Go-1.20+-00ADD8?style=flat&logo=go)](https://golang.org)
 [![Go-Zero](https://img.shields.io/badge/Go--Zero-v1.6.6-blue)](https://go-zero.dev)
