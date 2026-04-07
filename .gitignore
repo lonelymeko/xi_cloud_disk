@@ -1,7 +1,3 @@
-# ide
-.vscode/
-.idea/
-
 # Go build and test artifacts
 *.exe
 *.exe~
@@ -12,13 +8,22 @@
 *.prof
 *.zip
 *.mov
+
+# Local caches
+.cache/
+
 # Go workspace
 bin/
 pkg/
 
-# Go workspace (other common patterns)
+# Build outputs
 build/
 dist/
+coverage/
+tmp/
+temp/
+web/dist/
+web/dist-ssr/
 
 # IDE
 .vscode/
@@ -43,11 +48,15 @@ Thumbs.db
 
 # Dependency managers
 node_modules/
+web/node_modules/
 vendor/
 
 # Go test coverage
 coverage.out
 coverage.html
+
+# Frontend local env
+*.local
 
 # Vue-tsc generated artifacts
 web/src/**/*.js
@@ -58,4 +67,3 @@ web/demo/
 reference-project/
 core/bloom_filter.data
 docs/nginx-www.xixiu.top-cloud-disk.conf
-.gitignore

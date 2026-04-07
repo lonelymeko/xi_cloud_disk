@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import Chart from 'chart.js/auto'
 import { changePassword, getUserFileList, type UserFile } from '../lib/api'
 import { getToken } from '../lib/auth'
+import FileSmartButler from './FileSmartButler.vue'
 import FileWorkspace from './FileWorkspace.vue'
 const props = defineProps<{ active: string; userName: string; userEmail: string; search: string; refreshKey: number }>()
 const emit = defineEmits<{ (e: 'open-upload', parentId: number): void; (e: 'refresh-user'): void; (e: 'logout'): void }>()
@@ -453,6 +454,9 @@ function copyShareLink(identity: string) {
           </div>
         </div>
       </div>
+    </div>
+    <div v-else-if="props.active === '文件智能管家'" class="h-full min-h-0">
+      <FileSmartButler />
     </div>
     <template v-else>
       <FileWorkspace :active="props.active" :search="props.search" :refresh-key="props.refreshKey" @open-upload="emit('open-upload', $event)" />

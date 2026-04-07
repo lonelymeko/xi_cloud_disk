@@ -16,6 +16,10 @@ function setActive(name: string) { emit('select', name) }
         <i class="fa fa-folder-open w-5"></i>
         <span>文件资源管理器</span>
       </a>
+      <a href="#" class="nav-item" :class="{ active: isActive('文件智能管家') }" @click.prevent="setActive('文件智能管家')">
+        <i class="fa fa-comments-o w-5"></i>
+        <span>文件智能管家</span>
+      </a>
       <a href="#" class="nav-item" :class="{ active: isActive('个人中心') }" @click.prevent="setActive('个人中心')">
         <i class="fa fa-user w-5"></i>
         <span>个人中心</span>
