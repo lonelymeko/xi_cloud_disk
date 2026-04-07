@@ -12,6 +12,20 @@
 
 ## 🆕 最新更新
 
+### v2.4.0 (2026-04-07)
+
+#### 🤖 Eino Agent 集成（本次重点）
+- **新增文件智能管家**：前端新增独立入口“文件智能管家”，支持多轮对话、引用云盘文件、会话切换
+- **SSE 流式对话**：聊天、工具调用、工具结果、审批中断均通过 SSE 实时推送
+- **多工具 Agent**：基于 Eino Agent 接入文件类工具，支持文件浏览、文档问答、图片分析、视频解释、创建文件夹、移动文件
+- **多用户会话隔离**：按 `user_identity + session_id` 隔离会话与 checkpoint，避免串会话
+- **MySQL 持久化**：新增 Agent 会话、消息、checkpoint 表，刷新页面后仍可恢复上下文与待审批状态
+- **工具审批中断**：操作型工具执行前先进入审批，前端可选择“继续执行”或“取消执行”
+
+#### 🔧 工程整理
+- Agent 工具统一收敛到 `core/internal/agent/einoagent/tools/`
+- 修正根目录 `.gitignore`，避免将 `.cache/`、`web/dist/`、`web/node_modules/` 等本地产物提交到仓库
+
 ### v2.3.0 (2026-03-22)
 
 #### 🎉 Redis 能力升级（本次重点）
@@ -108,6 +122,7 @@
 ### ✨ 核心特性
 
 - 🚀 **异步文件上传**：RabbitMQ 消息队列 + 后台 Worker，秒级响应，支持高并发
+- 🤖 **文件智能管家**：基于 Eino Agent 的文件对话入口，支持流式回复、工具调用和审批中断
 - ⚡ **智能压缩**：视频自动压缩（ffmpeg H.264）、图片智能缩放（最大 1920x1080）
 - 📦 **分片上传**：大文件（>100MB）自动分片上传，10MB 分片 + 3 并发，支持断点续传
 - 🔄 **秒传机制**：基于 MD5 hash 的文件去重，相同文件无需重复上传
@@ -129,8 +144,11 @@
 | **Redis** | v9 | 缓存 + 验证码存储 |
 | **RabbitMQ** | 3.x+ | 消息队列（异步文件处理） |
 | **Xorm** | latest | ORM 框架 |
+| **Eino** | v0.8.4 | Agent 编排与工具调用 |
+| **OpenAI Compatible API** | - | Agent ChatModel / 多模态模型接入 |
 | **Aliyun OSS** | SDK v2 | 对象存储 |
 | **FFmpeg** | 4.0+ | 视频压缩 |
+| **Vue 3 + Vite** | latest | 前端文件管理与智能管家 |
 | **golang.org/x/image** | latest | 图片压缩 |
 | **bloom/v3** | v3.7.1 | 布隆过滤器（文件秒传优化） |
 
@@ -210,6 +228,12 @@ CORS_ALLOW_ORIGINS=http://localhost:5174,http://172.26.175.210:5174
 # 布隆过滤器配置（可选）
 # 定期保存间隔，默认30分钟
 BLOOM_FILTER_SAVE_INTERVAL=30m
+
+# Agent / ChatModel 配置（新增）
+OPENAI_API_KEY=your_api_key
+OPENAI_MODEL=your_chat_model
+OPENAI_BASE_URL=https://your-openai-compatible-endpoint/v1
+OPENAI_BY_AZURE=false
 ```
 
 ### 4. 数据库初始化
@@ -308,8 +332,13 @@ cloud_disk/
 │   │   └── rabbitmq_client.go # RabbitMQ 连接
 │   ├── internal/
 │   │   ├── config/           # 配置
+│   │   ├── agent/            # Eino Agent Provider 与工具
+│   │   │   └── einoagent/
+│   │   │       ├── provider.go
+│   │   │       └── tools/
 │   │   ├── filter/           # 布隆过滤器
 │   │   │   └── bloom_fliter.go # 布隆过滤器实现
+│   │   ├── cache/            # Redis / 本地缓存封装
 │   │   ├── handler/          # HTTP 处理器
 │   │   ├── logic/            # 业务逻辑
 │   │   ├── middleware/       # 中间件（JWT 认证）
@@ -317,7 +346,7 @@ cloud_disk/
 │   │   │   └── consumer.go   # RabbitMQ 消费者
 │   │   ├── svc/              # 服务上下文
 │   │   └── types/            # 请求/响应类型
-│   ├── models/               # 数据模型
+│   ├── models/               # 数据模型（含 Agent session/message/checkpoint）
 │   ├── utils/                # 工具函数
 │   │   ├── email_send.go     # 邮件发送
 │   │   ├── jwt_enter.go      # JWT 工具
@@ -340,7 +369,7 @@ cloud_disk/
 │   ├── 文件夹下载方案.md
 │   └── 代码审查-递归删除问题分析.md
 ├── test/                     # 测试代码
-├── web/                      # 前端UI（早期开发）
+├── web/                      # 前端 UI（含“文件智能管家”页面）
 ├── go.mod
 └── README.md
 ```
@@ -398,6 +427,82 @@ mindmap
 - ✅ 创建分享链接（支持过期时间）
 - ✅ 获取分享详情（公开访问）
 - ✅ 保存分享资源到个人网盘
+
+### 5. 文件智能管家
+
+- ✅ 基于 Eino Agent 的多轮对话
+- ✅ SSE 流式输出 assistant 内容、tool call、tool result、approval_required
+- ✅ 在聊天框引用用户文件，不直接暴露裸 OSS URL
+- ✅ 会话列表、历史消息恢复、待审批状态恢复
+- ✅ 多工具协同：文档、图片、视频、目录操作
+
+---
+
+## 🤖 Agent 设计
+
+### 架构概览
+
+```text
+前端 文件智能管家
+    ↓
+SSE /api/file/chat/stream
+    ↓
+Go-Zero Handler / Logic
+    ↓
+ServiceContext.AgentProvider
+    ↓
+Eino DeepAgent + ChatModel + Tool Middleware
+    ↓
+文件工具 / 审批中断 / Checkpoint Store / MySQL 持久化
+```
+
+### 接入方式
+
+1. 在 `ServiceContext` 注册 `AgentProvider`
+2. 在 `provider.go` 中初始化 Eino backend、ChatModel、DeepAgent 与工具集合
+3. 在 handler/logic 中暴露以下接口：
+   - `POST /api/file/session/create`
+   - `GET /api/file/session/list`
+   - `GET /api/file/session/detail`
+   - `GET /api/file/chat/stream`
+   - `GET /api/file/resume/stream`
+4. 前端通过 SSE 消费流式事件，并根据事件类型渲染消息、工具轨迹和审批卡片
+
+### 会话与持久化设计
+
+- 会话隔离维度：`user_identity + session_id`
+- 消息持久化表：
+  - `agent_chat_session`
+  - `agent_chat_message`
+  - `agent_chat_checkpoint`
+- 页面刷新后，前端先拉取 session 列表，再通过 `session/detail` 恢复历史消息和待审批状态
+- 中断恢复时，后端依据 checkpoint 恢复执行链，而不是重新从头跑一遍
+
+### 中断审批设计
+
+- 所有敏感工具调用在真正执行前会先触发 `approval_required`
+- 前端收到事件后展示审批卡片，用户可选择继续或取消
+- 用户操作后调用恢复流接口，Agent 再继续或终止对应工具调用
+- 这类设计比前端本地弹窗更稳，因为审批状态可持久化、可刷新恢复、可审计
+
+### 当前工具列表
+
+- `list_user_files`：列出用户根目录或指定文件夹内容
+- `answer_from_file_urls`：读取文本类文件并做问答/总结
+- `analyze_images_from_urls`：对引用图片做多模态分析
+- `summarize_video_from_url`：调用专用视频解释工具
+- `create_folder`：创建文件夹
+- `move_file`：移动文件或目录
+
+### 前端交互设计
+
+- 页面入口：左侧导航“文件智能管家”
+- 页面能力：
+  - 会话列表
+  - 消息流
+  - 审批卡片
+  - 文件引用弹层
+- 文件引用时，前端提交 `file_identity`，后端校验权限后再换成受控 URL 交给 Agent，避免模型直接访问任意路径或长期有效外链
 
 ---
 
@@ -468,7 +573,17 @@ mindmap
      - 查询速度快（避免数据库 IO）
      - 自动容错（文件损坏时重建）
 
-6. **双表架构设计**
+6. **Agent + 工具审批架构**（⭐ 最新特性）
+   - **核心能力：**
+     - 使用 Eino DeepAgent 编排文件工具
+     - 使用 SSE 向前端持续推送模型输出与工具轨迹
+     - 对写操作工具增加审批中断，避免模型直接执行高风险命令
+   - **工程设计：**
+     - 工具统一拆分到 `core/internal/agent/einoagent/tools/`
+     - 会话、消息、checkpoint 落库到 MySQL
+     - 前端刷新后可恢复历史对话与待审批状态
+
+7. **双表架构设计**
    ```
    repository_pool (全局文件存储池)
    ├── hash (唯一索引) - 实现文件去重
@@ -650,10 +765,10 @@ xorm reverse mysql "root:password@tcp(127.0.0.1:3306)/cloud_disk?charset=utf8mb4
 
 ### 高优先级
 
-- [ ] **SSE 实时进度推送**：实时推送文件上传/处理进度给客户端
 - [ ] **文件夹下载**：异步任务 + 后台打包（详见 `docs/文件夹下载方案.md`）
 - [ ] **死信队列**：RabbitMQ 配置死信队列处理失败任务
-- [ ] **Redis 缓存优化**：缓存文件列表 COUNT 结果
+- [ ] **操作审计**：记录 Agent 工具审批结果与执行人
+- [ ] **文件夹下载接入 Agent**：让 Agent 可解释压缩包内容与下载任务状态
 
 ### 中优先级
 
@@ -661,6 +776,7 @@ xorm reverse mysql "root:password@tcp(127.0.0.1:3306)/cloud_disk?charset=utf8mb4
 - [ ] **回收站功能**：软删除文件可恢复
 - [ ] **文件版本管理**：保留文件历史版本
 - [ ] **任务监控面板**：RabbitMQ 任务状态监控
+- [ ] **Agent 工具扩展**：重命名、批量移动、分享创建、回收站恢复
 
 ### 低优先级
 
@@ -680,6 +796,7 @@ xorm reverse mysql "root:password@tcp(127.0.0.1:3306)/cloud_disk?charset=utf8mb4
 4. ~~大文件上传性能问题~~ ✅ 已修复（使用分片上传）
 5. ~~文件上传响应慢~~ ✅ 已修复（使用 RabbitMQ 异步处理）
 6. ~~布隆过滤器数据丢失风险~~ ✅ 已修复（定期保存 + 优雅关闭）
+7. ~~前端看不到文件智能管家入口~~ ✅ 已修复（已接入左侧导航和主区域路由）
 
 ---
 
