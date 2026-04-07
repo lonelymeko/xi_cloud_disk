@@ -18,3 +18,9 @@ RabbitMQ:
   Username: guest
   Password: guest
   Vhost: /
+Agent:
+  Enabled: true
+  ProjectRoot: /Users/xixiu/GolandProjects/cloud_disk
+  SessionDir: /Users/xixiu/GolandProjects/cloud_disk/core/.agent_sessions
+  SkillsDir: /Users/xixiu/GolandProjects/cloud_disk/core/.agent_skills
+  MaxIteration: 50

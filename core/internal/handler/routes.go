@@ -59,6 +59,11 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				},
 				{
 					Method:  http.MethodPost,
+					Path:    "/upload/status",
+					Handler: QueryUploadTaskStatusHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
 					Path:    "/url",
 					Handler: DownloadURLHandler(serverCtx),
 				},
@@ -86,6 +91,41 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 					Method:  http.MethodPost,
 					Path:    "/user/list",
 					Handler: UserFileListHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/session/create",
+					Handler: AgentCreateSessionHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/session/list",
+					Handler: AgentListSessionsHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/session/detail",
+					Handler: AgentSessionDetailHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/chat",
+					Handler: AgentChatHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/resume",
+					Handler: AgentResumeHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/chat/stream",
+					Handler: AgentChatStreamHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/resume/stream",
+					Handler: AgentResumeStreamHandler(serverCtx),
 				},
 			}...,
 		),

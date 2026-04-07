@@ -61,11 +61,15 @@ func newTestEnv(t *testing.T) *testEnv {
 type fakeRedisClient struct {
 	mu   sync.Mutex
 	data map[string]string
+	hash map[string]map[string]string
 }
 
 // newFakeRedisClient 创建 Redis 测试替身。
 func newFakeRedisClient() *fakeRedisClient {
-	return &fakeRedisClient{data: map[string]string{}}
+	return &fakeRedisClient{
+		data: map[string]string{},
+		hash: map[string]map[string]string{},
+	}
 }
 
 // Get 获取键值。
@@ -98,6 +102,41 @@ func (f *fakeRedisClient) SetNX(ctx context.Context, key string, value interface
 	return redis.NewBoolResult(true, nil)
 }
 
+// HSet 设置 Hash 字段。
+func (f *fakeRedisClient) HSet(ctx context.Context, key string, values ...interface{}) *redis.IntCmd {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.hash[key] == nil {
+		f.hash[key] = map[string]string{}
+	}
+	var added int64
+	for i := 0; i+1 < len(values); i += 2 {
+		field := fmt.Sprint(values[i])
+		value := fmt.Sprint(values[i+1])
+		if _, ok := f.hash[key][field]; !ok {
+			added++
+		}
+		f.hash[key][field] = value
+	}
+	return redis.NewIntResult(added, nil)
+}
+
+// HGetAll 获取 Hash 全量字段。
+func (f *fakeRedisClient) HGetAll(ctx context.Context, key string) *redis.MapStringStringCmd {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	result := map[string]string{}
+	for k, v := range f.hash[key] {
+		result[k] = v
+	}
+	return redis.NewMapStringStringResult(result, nil)
+}
+
+// Expire 设置过期时间，测试替身中不实际处理 TTL。
+func (f *fakeRedisClient) Expire(ctx context.Context, key string, expiration time.Duration) *redis.BoolCmd {
+	return redis.NewBoolResult(true, nil)
+}
+
 // Del 删除键值。
 func (f *fakeRedisClient) Del(ctx context.Context, keys ...string) *redis.IntCmd {
 	f.mu.Lock()
@@ -105,6 +144,10 @@ func (f *fakeRedisClient) Del(ctx context.Context, keys ...string) *redis.IntCmd
 	for _, key := range keys {
 		if _, ok := f.data[key]; ok {
 			delete(f.data, key)
+			count++
+		}
+		if _, ok := f.hash[key]; ok {
+			delete(f.hash, key)
 			count++
 		}
 	}

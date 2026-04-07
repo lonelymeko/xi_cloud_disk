@@ -33,4 +33,11 @@ type Config struct {
 		Password string
 		Vhost    string
 	}
+	Agent struct {
+		Enabled      bool
+		ProjectRoot  string
+		SessionDir   string
+		SkillsDir    string
+		MaxIteration int
+	}
 }

@@ -52,6 +52,21 @@ export interface UploadFileResp {
   message: string
 }
 
+export interface UploadTaskStatusItem {
+  hash: string
+  task_key: string
+  name: string
+  ext: string
+  size: number
+  state: number
+  uploaded_parts: number[]
+  updated_at: string
+}
+
+export interface QueryUploadTaskStatusResp {
+  list: UploadTaskStatusItem[]
+}
+
 export interface CreateFolderResp {
   id: number
   identity: string
@@ -228,6 +243,25 @@ export async function getUserFileList(parentId: number, page: number, size: numb
   }
   const json = await readJson<UserFileListResp>(res)
   if (json.code !== 0) throw new Error(json.msg || '获取文件列表失败')
+  return json.data
+}
+
+export async function queryUploadTaskStatus(token: string, hash = ''): Promise<QueryUploadTaskStatusResp> {
+  const res = await fetch(`${API_BASE}/api/file/upload/status`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...withAuth(token),
+    },
+    body: JSON.stringify({ hash }),
+  })
+  if (!res.ok) {
+    const json = (await res.json().catch(() => null)) as ApiResp<QueryUploadTaskStatusResp> | null
+    if (json?.msg) throw new Error(json.msg)
+    throw new Error(`HTTP ${res.status}`)
+  }
+  const json = await readJson<QueryUploadTaskStatusResp>(res)
+  if (json.code !== 0) throw new Error(json.msg || '获取上传任务状态失败')
   return json.data
 }
 

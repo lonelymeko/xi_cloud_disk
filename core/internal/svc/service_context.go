@@ -5,6 +5,7 @@ package svc
 
 import (
 	"cloud_disk/core/global"
+	"cloud_disk/core/internal/agent/einoagent"
 	"cloud_disk/core/internal/config"
 	"cloud_disk/core/internal/filter"
 	"cloud_disk/core/internal/middleware"
@@ -30,6 +31,7 @@ type ServiceContext struct {
 	RabbitMQConn       *amqp091.Connection
 	RabbitMQChannel    *amqp091.Channel
 	FileAuthMiddleware rest.Middleware
+	AgentProvider      einoagent.Provider
 	MyBloomFilter      *filter.MyBloomFilter
 }
 
@@ -38,6 +40,9 @@ type RedisClient interface {
 	Get(ctx context.Context, key string) *redis.StringCmd
 	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd
 	SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.BoolCmd
+	HSet(ctx context.Context, key string, values ...interface{}) *redis.IntCmd
+	HGetAll(ctx context.Context, key string) *redis.MapStringStringCmd
+	Expire(ctx context.Context, key string, expiration time.Duration) *redis.BoolCmd
 	Del(ctx context.Context, keys ...string) *redis.IntCmd
 	Ping(ctx context.Context) *redis.StatusCmd
 }
@@ -51,6 +56,7 @@ type serviceDeps struct {
 	ensureTablesHealth func(*xorm.Engine) error
 	ensureDefaultAdmin func(*xorm.Engine) error
 	initRabbitMQ       func(string, int, string, string, string) (*amqp091.Connection, *amqp091.Channel)
+	initAgent          func(context.Context, einoagent.Config, einoagent.Dependencies) (einoagent.Provider, error)
 }
 
 // deps 默认依赖实现。
@@ -64,6 +70,7 @@ var deps = serviceDeps{
 	ensureSchema:       utils.EnsureSchema,
 	ensureTablesHealth: utils.TablesHealthy,
 	ensureDefaultAdmin: utils.EnsureDefaultAdmin,
+	initAgent:          einoagent.NewProvider,
 }
 
 // NewServiceContext 创建服务上下文。
@@ -81,6 +88,16 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 	// 注册布隆过滤器
 	bloomFilter := filter.NewBloomFilter(eng)
+	agentProvider, err := deps.initAgent(context.Background(), einoagent.Config{
+		Enabled:      c.Agent.Enabled,
+		ProjectRoot:  c.Agent.ProjectRoot,
+		SessionDir:   c.Agent.SessionDir,
+		SkillsDir:    c.Agent.SkillsDir,
+		MaxIteration: c.Agent.MaxIteration,
+	}, einoagent.Dependencies{DBEngine: eng})
+	if err != nil {
+		logx.Errorf("init agent provider failed: %v", err)
+	}
 	// 启动布隆过滤器定期保存任务
 	stopBloomTask := startBloomFilterPersistTask(bloomFilter)
 	// 注册优雅关闭处理
@@ -92,6 +109,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		RabbitMQConn:       rmqConn,
 		RabbitMQChannel:    rmqCh,
 		FileAuthMiddleware: deps.newFileAuth(c.Auth.AccessSecret, c.Auth.AccessExpire),
+		AgentProvider:      agentProvider,
 		MyBloomFilter:      bloomFilter,
 	}
 }

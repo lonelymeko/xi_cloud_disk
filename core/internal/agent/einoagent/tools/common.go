@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	pdf "github.com/ledongthuc/pdf"
 	"github.com/cloudwego/eino/schema"
 )
 
@@ -117,6 +119,14 @@ func IsTextLike(mimeType, fileName string) bool {
 	}
 }
 
+func IsPDFLike(mimeType, fileName string) bool {
+	mimeType = NormalizeMIME(mimeType, fileName)
+	if mimeType == "application/pdf" {
+		return true
+	}
+	return strings.EqualFold(filepath.Ext(fileName), ".pdf")
+}
+
 func IsImageLike(mimeType, fileName string) bool {
 	mimeType = NormalizeMIME(mimeType, fileName)
 	if strings.HasPrefix(mimeType, "image/") {
@@ -143,7 +153,7 @@ func IsVideoLike(mimeType, fileName string) bool {
 	}
 }
 
-func FetchTextFile(ctx context.Context, file FileRef) (string, error) {
+func FetchDocumentText(ctx context.Context, file FileRef) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, file.URL, nil)
 	if err != nil {
 		return "", err
@@ -165,10 +175,54 @@ func FetchTextFile(ctx context.Context, file FileRef) (string, error) {
 	if mimeType == "" {
 		mimeType = resp.Header.Get("Content-Type")
 	}
-	if !IsTextLike(mimeType, file.Name) {
-		return "", fmt.Errorf("file %s is not a supported text-like format yet", file.Name)
+	switch {
+	case IsTextLike(mimeType, file.Name):
+		return string(body), nil
+	case IsPDFLike(mimeType, file.Name):
+		return ExtractPDFText(file.Name, body)
+	default:
+		return "", fmt.Errorf("file %s is not a supported document format yet", file.Name)
 	}
-	return string(body), nil
+}
+
+func ExtractPDFText(fileName string, body []byte) (string, error) {
+	tmpFile, err := os.CreateTemp("", "cloud-disk-doc-*.pdf")
+	if err != nil {
+		return "", fmt.Errorf("create temp pdf for %s: %w", fileName, err)
+	}
+	tmpPath := tmpFile.Name()
+	defer func() {
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpPath)
+	}()
+
+	if _, err := io.Copy(tmpFile, bytes.NewReader(body)); err != nil {
+		return "", fmt.Errorf("write temp pdf for %s: %w", fileName, err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		return "", fmt.Errorf("close temp pdf for %s: %w", fileName, err)
+	}
+
+	f, reader, err := pdf.Open(tmpPath)
+	if err != nil {
+		return "", fmt.Errorf("open pdf %s: %w", fileName, err)
+	}
+	defer f.Close()
+
+	textReader, err := reader.GetPlainText()
+	if err != nil {
+		return "", fmt.Errorf("extract pdf text %s: %w", fileName, err)
+	}
+
+	plainText, err := io.ReadAll(io.LimitReader(textReader, 4*DefaultAttachmentBytes))
+	if err != nil {
+		return "", fmt.Errorf("read pdf text %s: %w", fileName, err)
+	}
+	content := strings.TrimSpace(string(plainText))
+	if content == "" {
+		return "", fmt.Errorf("pdf %s does not contain extractable text; it may be scanned and require OCR", fileName)
+	}
+	return content, nil
 }
 
 func ExtractVideoFrames(ctx context.Context, file FileRef) ([]ExtractedFrame, func(), error) {

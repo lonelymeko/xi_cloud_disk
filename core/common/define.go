@@ -1,6 +1,9 @@
 package common
 
-import "os"
+import (
+	"os"
+	"time"
+)
 
 // OSSRegion OSS 默认地域。
 var OSSRegion = os.Getenv("OSS_REGION")
@@ -13,6 +16,16 @@ var PageSize = 20
 
 // DataTimeFormat 时间格式化模板。
 var DataTimeFormat = "2006-01-02 15:04:05"
+
+// Redis key 前缀与 TTL。
+const (
+	UploadTaskStatePrefix    = "upload:task:state:"
+	UploadTaskHashPrefix     = "upload:task:parts:"
+	UploadTaskUserIndexPrefix = "upload:task:user:"
+	UserFileListCountPrefix  = "user:file:list:count:"
+)
+
+var UploadTaskTTL = 10 * time.Minute
 
 // 分片上传配置
 const (

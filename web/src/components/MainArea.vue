@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import Chart from 'chart.js/auto'
-import { changePassword, getUserFileList, type UserFile } from '../lib/api'
+import { changePassword, getUserFileList, queryUploadTaskStatus, type UploadTaskStatusItem, type UserFile } from '../lib/api'
 import { getToken } from '../lib/auth'
 import FileSmartButler from './FileSmartButler.vue'
 import FileWorkspace from './FileWorkspace.vue'
@@ -30,6 +30,10 @@ const resizeObserver = ref<ResizeObserver | null>(null)
 
 const shareItems = ref<Array<{ identity: string; name: string; ext: string; size: number; repository_identity: string; created_at: string }>>([])
 const shareError = ref('')
+const uploadTasks = ref<UploadTaskStatusItem[]>([])
+const uploadTaskError = ref('')
+const uploadTaskLoading = ref(false)
+const uploadTaskTimer = ref<number | null>(null)
 
 function observeContainers() {
   if (!resizeObserver.value) return
@@ -117,6 +121,62 @@ function formatSize(size: number) {
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)}KB`
   if (size < 1024 * 1024 * 1024) return `${(size / 1024 / 1024).toFixed(1)}MB`
   return `${(size / 1024 / 1024 / 1024).toFixed(1)}GB`
+}
+
+function uploadTaskStateLabel(state: number) {
+  switch (state) {
+    case 0: return '前端上传中'
+    case 1: return '服务端处理中'
+    case 2: return '上传对象存储中'
+    case 3: return '写入数据库中'
+    case 4: return '上传成功'
+    default: return '未知状态'
+  }
+}
+
+function uploadTaskStateClass(state: number) {
+  switch (state) {
+    case 4: return 'bg-emerald-100 text-emerald-700'
+    case 3: return 'bg-sky-100 text-sky-700'
+    case 2: return 'bg-indigo-100 text-indigo-700'
+    case 1: return 'bg-amber-100 text-amber-700'
+    default: return 'bg-slate-100 text-slate-700'
+  }
+}
+
+async function loadUploadTasks() {
+  if (props.active !== '个人中心') return
+  const token = getToken()
+  if (!token) {
+    uploadTaskError.value = '登录已失效，请重新登录'
+    uploadTasks.value = []
+    return
+  }
+  uploadTaskLoading.value = true
+  uploadTaskError.value = ''
+  try {
+    const data = await queryUploadTaskStatus(token)
+    uploadTasks.value = (data.list || []).sort((a, b) => `${b.updated_at}`.localeCompare(`${a.updated_at}`))
+  } catch (e: any) {
+    uploadTaskError.value = e?.message || '加载上传任务状态失败'
+  } finally {
+    uploadTaskLoading.value = false
+  }
+}
+
+function startUploadTaskPolling() {
+  stopUploadTaskPolling()
+  void loadUploadTasks()
+  uploadTaskTimer.value = window.setInterval(() => {
+    void loadUploadTasks()
+  }, 5000)
+}
+
+function stopUploadTaskPolling() {
+  if (uploadTaskTimer.value !== null) {
+    window.clearInterval(uploadTaskTimer.value)
+    uploadTaskTimer.value = null
+  }
 }
 
 const fileTypes = computed(() => {
@@ -243,7 +303,11 @@ watch(() => props.active, async () => {
     await nextTick()
     observeContainers()
     loadHomeData()
+    stopUploadTaskPolling()
+  } else if (props.active === '个人中心') {
+    startUploadTaskPolling()
   } else {
+    stopUploadTaskPolling()
     homeReady.value = false
     if (doughnutChart.value) {
       doughnutChart.value.stop()
@@ -272,6 +336,7 @@ watch(() => fileTypes.value.map((item) => `${item.key}:${item.count}:${item.size
 
 onMounted(() => {
   if (props.active === '首页') loadHomeData()
+  if (props.active === '个人中心') startUploadTaskPolling()
   if (typeof ResizeObserver !== 'undefined') {
     resizeObserver.value = new ResizeObserver(() => {
       if (!homeReady.value) return
@@ -283,6 +348,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  stopUploadTaskPolling()
   if (doughnutChart.value) doughnutChart.value.destroy()
   if (barChart.value) barChart.value.destroy()
   if (resizeObserver.value) resizeObserver.value.disconnect()
@@ -347,6 +413,28 @@ function copyShareLink(identity: string) {
             <h2 class="text-lg font-medium mb-4">注册邮箱</h2>
             <div class="text-sm text-gray-medium mb-3">用于找回密码和安全验证</div>
             <div class="font-medium">{{ props.userEmail || '未绑定邮箱' }}</div>
+          </div>
+          <div class="bg-white rounded-xl shadow-card p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-lg font-medium">上传任务状态</h2>
+              <button class="btn-secondary" @click="loadUploadTasks">刷新</button>
+            </div>
+            <div v-if="uploadTaskError" class="text-sm text-red-600">{{ uploadTaskError }}</div>
+            <div v-else-if="uploadTaskLoading && uploadTasks.length === 0" class="text-sm text-gray-medium">加载中...</div>
+            <div v-else-if="uploadTasks.length === 0" class="text-sm text-gray-medium">暂无上传任务</div>
+            <div v-else class="space-y-3">
+              <div v-for="task in uploadTasks" :key="task.task_key || task.hash" class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <div class="truncate font-medium text-gray-800">{{ task.name || task.hash }}</div>
+                    <div class="mt-1 text-xs text-gray-medium">{{ formatSize(task.size) }} · {{ task.updated_at || '-' }}</div>
+                  </div>
+                  <span class="rounded-full px-2 py-1 text-xs font-medium" :class="uploadTaskStateClass(task.state)">{{ uploadTaskStateLabel(task.state) }}</span>
+                </div>
+                <div class="mt-2 text-xs text-gray-medium break-all">Hash: {{ task.hash }}</div>
+                <div v-if="task.uploaded_parts?.length" class="mt-2 text-xs text-gray-medium">已上传分片: {{ task.uploaded_parts.join(', ') }}</div>
+              </div>
+            </div>
           </div>
           <div class="bg-white rounded-xl shadow-card p-6">
             <h2 class="text-lg font-medium mb-4">账号操作</h2>

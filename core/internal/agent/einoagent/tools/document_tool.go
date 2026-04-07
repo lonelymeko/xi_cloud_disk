@@ -28,7 +28,7 @@ func NewDocumentAnswerTool(cm einomodel.BaseChatModel) einotool.BaseTool {
 func (t *documentAnswerTool) Info(_ context.Context) (*schema.ToolInfo, error) {
 	return &schema.ToolInfo{
 		Name: FileAnswerToolName,
-		Desc: "Read one or more cloud_disk file URLs, extract textual content from supported text-like files, and answer the user's question with citations.",
+		Desc: "Read one or more cloud_disk file URLs, extract textual content from supported text-like files or PDFs, and answer the user's question with citations.",
 		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
 			"question": {Type: schema.String, Desc: "The user question to answer from the attached files.", Required: true},
 			"files":    FileArrayParam("The attached cloud_disk files to inspect."),
@@ -50,7 +50,7 @@ func (t *documentAnswerTool) InvokableRun(ctx context.Context, argumentsInJSON s
 
 	excerpts := make([]FileExcerpt, 0, len(input.Files))
 	for _, file := range input.Files {
-		content, err := FetchTextFile(ctx, file)
+		content, err := FetchDocumentText(ctx, file)
 		if err != nil {
 			return "", err
 		}

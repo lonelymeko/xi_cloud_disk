@@ -116,6 +116,94 @@ type UploadFileResponse struct {
 	Message string `json:"message,optional"`
 }
 
+type UploadTaskStatusItem struct {
+	Hash          string `json:"hash"`
+	TaskKey       string `json:"task_key"`
+	Name          string `json:"name"`
+	Ext           string `json:"ext"`
+	Size          int64  `json:"size"`
+	State         int    `json:"state"`
+	UploadedParts []int  `json:"uploaded_parts"`
+	UpdatedAt     string `json:"updated_at"`
+}
+
+type QueryUploadTaskStatusRequest struct {
+	Hash string `json:"hash,optional"`
+}
+
+type QueryUploadTaskStatusResponse struct {
+	List []*UploadTaskStatusItem `json:"list"`
+}
+
+type AgentFileReference struct {
+	FileIdentity string `json:"file_identity,omitempty"`
+	Name         string `json:"name,omitempty"`
+	URL          string `json:"url,omitempty"`
+	MIMEType     string `json:"mime_type,omitempty"`
+}
+
+type AgentPendingInterrupt struct {
+	InterruptID   string `json:"interrupt_id"`
+	ToolName      string `json:"tool_name"`
+	ArgumentsJSON string `json:"arguments_json"`
+}
+
+type AgentChatEvent struct {
+	Type          string `json:"type"`
+	Role          string `json:"role,omitempty"`
+	Content       string `json:"content,omitempty"`
+	ToolName      string `json:"tool_name,omitempty"`
+	ArgumentsJSON string `json:"arguments_json,omitempty"`
+}
+
+type AgentSession struct {
+	ID                 string `json:"id"`
+	Title              string `json:"title"`
+	PendingInterruptID string `json:"pending_interrupt_id,omitempty"`
+	CreatedAt          string `json:"created_at,omitempty"`
+	UpdatedAt          string `json:"updated_at,omitempty"`
+}
+
+type AgentConversationMessage struct {
+	Role      string `json:"role"`
+	Content   string `json:"content"`
+	CreatedAt string `json:"created_at,omitempty"`
+}
+
+type AgentChatRequest struct {
+	SessionID   string               `json:"session_id,optional"`
+	Message     string               `json:"message"`
+	Attachments []AgentFileReference `json:"attachments,optional"`
+}
+
+type AgentResumeRequest struct {
+	SessionID   string `json:"session_id"`
+	InterruptID string `json:"interrupt_id"`
+	Approved    bool   `json:"approved"`
+	Reason      string `json:"reason,optional"`
+}
+
+type AgentChatResponse struct {
+	Session          *AgentSession           `json:"session,omitempty"`
+	Reply            string                  `json:"reply,omitempty"`
+	Events           []*AgentChatEvent       `json:"events,omitempty"`
+	PendingInterrupt *AgentPendingInterrupt  `json:"pending_interrupt,omitempty"`
+	ReferencedFiles  []*AgentFileReference   `json:"referenced_files,omitempty"`
+}
+
+type AgentSessionListResponse struct {
+	List []*AgentSession `json:"list"`
+}
+
+type AgentSessionDetailRequest struct {
+	SessionID string `form:"session_id"`
+}
+
+type AgentSessionDetailResponse struct {
+	Session  *AgentSession               `json:"session,omitempty"`
+	Messages []*AgentConversationMessage `json:"messages,omitempty"`
+}
+
 type UserDetailRequest struct {
 	Identity string `json:"identity"`
 }

@@ -1,6 +1,7 @@
 package svc
 
 import (
+	"cloud_disk/core/internal/agent/einoagent"
 	"cloud_disk/core/internal/config"
 	"context"
 	"net/http"
@@ -53,6 +54,7 @@ func TestNewServiceContextUsesDeps(t *testing.T) {
 	calledInitRedis := false
 	calledNewFileAuth := false
 	calledInitRabbitMQ := false
+	calledInitAgent := false
 
 	fakeDB := &xorm.Engine{}
 	fakeRedis := &fakeRedisClient{}
@@ -104,6 +106,10 @@ func TestNewServiceContextUsesDeps(t *testing.T) {
 			calledInitRabbitMQ = true
 			return nil, nil
 		},
+		initAgent: func(ctx context.Context, cfg einoagent.Config, deps einoagent.Dependencies) (einoagent.Provider, error) {
+			calledInitAgent = true
+			return nil, nil
+		},
 	}
 
 	ctx := NewServiceContext(cfg)
@@ -119,7 +125,7 @@ func TestNewServiceContextUsesDeps(t *testing.T) {
 	if ctx.FileAuthMiddleware == nil {
 		t.Fatal("middleware is nil")
 	}
-	if !calledInitDB || !calledEnsureSchema || !calledEnsureTablesHealth || !calledEnsureDefaultAdmin || !calledInitRedis || !calledNewFileAuth || !calledInitRabbitMQ {
+	if !calledInitDB || !calledEnsureSchema || !calledEnsureTablesHealth || !calledEnsureDefaultAdmin || !calledInitRedis || !calledNewFileAuth || !calledInitRabbitMQ || !calledInitAgent {
 		t.Fatal("deps not fully used")
 	}
 }
@@ -134,6 +140,15 @@ func (f *fakeRedisClient) Set(ctx context.Context, key string, value interface{}
 	return redis.NewStatusResult("", nil)
 }
 func (f *fakeRedisClient) SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.BoolCmd {
+	return redis.NewBoolResult(true, nil)
+}
+func (f *fakeRedisClient) HSet(ctx context.Context, key string, values ...interface{}) *redis.IntCmd {
+	return redis.NewIntResult(1, nil)
+}
+func (f *fakeRedisClient) HGetAll(ctx context.Context, key string) *redis.MapStringStringCmd {
+	return redis.NewMapStringStringResult(map[string]string{}, nil)
+}
+func (f *fakeRedisClient) Expire(ctx context.Context, key string, expiration time.Duration) *redis.BoolCmd {
 	return redis.NewBoolResult(true, nil)
 }
 func (f *fakeRedisClient) Del(ctx context.Context, keys ...string) *redis.IntCmd {
