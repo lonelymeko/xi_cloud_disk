@@ -3,6 +3,7 @@ package mq
 import (
 	"bytes"
 	"cloud_disk/core/common"
+	"cloud_disk/core/internal/cache"
 	"cloud_disk/core/internal/svc"
 	"cloud_disk/core/internal/types"
 	"cloud_disk/core/models"
@@ -126,6 +127,8 @@ func (c *Consumer) processFile(body []byte) (err error) {
 		logx.Errorf("Failed to unmarshal message body: %v", err)
 		return err
 	}
+	_ = cache.SetUploadTaskState(c.ctx, c.svcCtx.RedisClient, task.UserIdentity, task.Hash, 1)
+
 	ur := new(models.UserRepository)
 	// 特判：文件存在且上传的文件在当前父目录下已存在且用户 id 一致
 	if task.IsExisted {
@@ -262,6 +265,7 @@ func (c *Consumer) processFile(body []byte) (err error) {
 		}
 
 		// 业务层按环境变量选择存储实现（OSS/TOS）。
+		_ = cache.SetUploadTaskState(c.ctx, c.svcCtx.RedisClient, task.UserIdentity, task.Hash, 2)
 		OssPath, err := c.uploadByStorageType(uploadFile, tempFile, finalUploadPath, uploadFilename, actualSize)
 
 		// 上传完成后，立即清理压缩文件
@@ -275,6 +279,7 @@ func (c *Consumer) processFile(body []byte) (err error) {
 			return err
 		}
 		logx.Infof("开始存入数据库")
+		_ = cache.SetUploadTaskState(c.ctx, c.svcCtx.RedisClient, task.UserIdentity, task.Hash, 3)
 
 		// 文件不存在就存入中央数据库
 		rp := &models.RepositoryPool{
@@ -298,6 +303,15 @@ func (c *Consumer) processFile(body []byte) (err error) {
 	if err != nil {
 		return err
 	}
+	_ = cache.SaveUploadTaskMeta(c.ctx, c.svcCtx.RedisClient, task.UserIdentity, cache.UploadTaskMeta{
+		Hash:      task.Hash,
+		Name:      task.Name,
+		Ext:       task.Ext,
+		Size:      task.Size,
+		TaskKey:   cache.BuildUploadTaskUniqueFeature(task.UserIdentity, task.Hash),
+		UpdatedAt: "",
+	})
+	_ = cache.SetUploadTaskState(c.ctx, c.svcCtx.RedisClient, task.UserIdentity, task.Hash, 4)
 	return nil
 
 }

@@ -97,6 +97,71 @@ export interface SaveShareResp {
   identity: string
 }
 
+export interface AgentFileReference {
+  file_identity?: string
+  name?: string
+  url?: string
+  mime_type?: string
+}
+
+export interface AgentPendingInterrupt {
+  interrupt_id: string
+  tool_name: string
+  arguments_json: string
+}
+
+export interface AgentChatEvent {
+  type: string
+  role?: string
+  content?: string
+  tool_name?: string
+  arguments_json?: string
+}
+
+export interface AgentSession {
+  id: string
+  title: string
+  pending_interrupt_id?: string
+  created_at?: string
+  updated_at?: string
+}
+
+export interface AgentConversationMessage {
+  role: string
+  content: string
+  created_at?: string
+}
+
+export interface AgentChatResponse {
+  session?: AgentSession
+  reply?: string
+  events?: AgentChatEvent[]
+  pending_interrupt?: AgentPendingInterrupt
+  referenced_files?: AgentFileReference[]
+}
+
+export interface AgentSessionListResponse {
+  list: AgentSession[]
+}
+
+export interface AgentSessionDetailResponse {
+  session?: AgentSession
+  messages?: AgentConversationMessage[]
+}
+
+export interface AgentStreamEvent {
+  type: string
+  role?: string
+  content?: string
+  tool_name?: string
+  arguments_json?: string
+  session?: AgentSession
+  pending_interrupt?: AgentPendingInterrupt
+  referenced_files?: AgentFileReference[]
+  reply?: string
+  error?: string
+}
+
 function base64Encode(input: string): string {
   const bytes = new TextEncoder().encode(input)
   let bin = ''
@@ -263,6 +328,146 @@ export async function queryUploadTaskStatus(token: string, hash = ''): Promise<Q
   const json = await readJson<QueryUploadTaskStatusResp>(res)
   if (json.code !== 0) throw new Error(json.msg || '获取上传任务状态失败')
   return json.data
+}
+
+export async function createAgentSession(token: string): Promise<AgentChatResponse> {
+  const res = await fetch(`${API_BASE}/api/file/session/create`, {
+    method: 'POST',
+    headers: {
+      ...withAuth(token),
+    },
+  })
+  if (!res.ok) {
+    const json = (await res.json().catch(() => null)) as ApiResp<AgentChatResponse> | null
+    if (json?.msg) throw new Error(json.msg)
+    throw new Error(`HTTP ${res.status}`)
+  }
+  const json = await readJson<AgentChatResponse>(res)
+  if (json.code !== 0) throw new Error(json.msg || '创建会话失败')
+  return json.data
+}
+
+export async function listAgentSessions(token: string): Promise<AgentSessionListResponse> {
+  const res = await fetch(`${API_BASE}/api/file/session/list`, {
+    method: 'GET',
+    headers: {
+      ...withAuth(token),
+    },
+  })
+  if (!res.ok) {
+    const json = (await res.json().catch(() => null)) as ApiResp<AgentSessionListResponse> | null
+    if (json?.msg) throw new Error(json.msg)
+    throw new Error(`HTTP ${res.status}`)
+  }
+  const json = await readJson<AgentSessionListResponse>(res)
+  if (json.code !== 0) throw new Error(json.msg || '获取会话列表失败')
+  return json.data
+}
+
+export async function getAgentSessionDetail(sessionId: string, token: string): Promise<AgentSessionDetailResponse> {
+  const qs = new URLSearchParams({ session_id: sessionId })
+  const res = await fetch(`${API_BASE}/api/file/session/detail?${qs.toString()}`, {
+    method: 'GET',
+    headers: {
+      ...withAuth(token),
+    },
+  })
+  if (!res.ok) {
+    const json = (await res.json().catch(() => null)) as ApiResp<AgentSessionDetailResponse> | null
+    if (json?.msg) throw new Error(json.msg)
+    throw new Error(`HTTP ${res.status}`)
+  }
+  const json = await readJson<AgentSessionDetailResponse>(res)
+  if (json.code !== 0) throw new Error(json.msg || '获取会话详情失败')
+  return json.data
+}
+
+async function readSSEStream(res: Response, onEvent: (event: AgentStreamEvent) => void): Promise<void> {
+  if (!res.body) {
+    throw new Error('响应不支持流式读取')
+  }
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+
+    let boundary = buffer.indexOf('\n\n')
+    while (boundary >= 0) {
+      const chunk = buffer.slice(0, boundary)
+      buffer = buffer.slice(boundary + 2)
+      const lines = chunk.split('\n')
+      const dataLines = lines
+        .filter((line) => line.startsWith('data:'))
+        .map((line) => line.slice(5).trim())
+      if (dataLines.length > 0) {
+        const raw = dataLines.join('\n')
+        if (raw) {
+          onEvent(JSON.parse(raw) as AgentStreamEvent)
+        }
+      }
+      boundary = buffer.indexOf('\n\n')
+    }
+  }
+}
+
+export async function agentChatStream(
+  sessionId: string,
+  message: string,
+  attachments: AgentFileReference[],
+  token: string,
+  onEvent: (event: AgentStreamEvent) => void,
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/file/chat/stream`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...withAuth(token),
+    },
+    body: JSON.stringify({
+      session_id: sessionId,
+      message,
+      attachments,
+    }),
+  })
+  if (!res.ok) {
+    const json = (await res.json().catch(() => null)) as ApiResp<AgentChatResponse> | null
+    if (json?.msg) throw new Error(json.msg)
+    throw new Error(`HTTP ${res.status}`)
+  }
+  await readSSEStream(res, onEvent)
+}
+
+export async function agentResumeStream(
+  sessionId: string,
+  interruptId: string,
+  approved: boolean,
+  reason: string,
+  token: string,
+  onEvent: (event: AgentStreamEvent) => void,
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/file/resume/stream`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...withAuth(token),
+    },
+    body: JSON.stringify({
+      session_id: sessionId,
+      interrupt_id: interruptId,
+      approved,
+      reason,
+    }),
+  })
+  if (!res.ok) {
+    const json = (await res.json().catch(() => null)) as ApiResp<AgentChatResponse> | null
+    if (json?.msg) throw new Error(json.msg)
+    throw new Error(`HTTP ${res.status}`)
+  }
+  await readSSEStream(res, onEvent)
 }
 
 export async function uploadFile(file: File, parentId: number, token: string): Promise<UploadFileResp> {

@@ -25,6 +25,15 @@ func EnsureSchema(engine *xorm.Engine) error {
 	if err := engine.Sync2(new(models.FileEventLog)); err != nil {
 		return fmt.Errorf("sync file_event_log: %w", err)
 	}
+	if err := engine.Sync2(new(models.AgentChatSession)); err != nil {
+		return fmt.Errorf("sync agent_chat_session: %w", err)
+	}
+	if err := engine.Sync2(new(models.AgentChatMessage)); err != nil {
+		return fmt.Errorf("sync agent_chat_message: %w", err)
+	}
+	if err := engine.Sync2(new(models.AgentChatCheckpoint)); err != nil {
+		return fmt.Errorf("sync agent_chat_checkpoint: %w", err)
+	}
 	if err := ensureAutoIncrement(engine); err != nil {
 		return err
 	}
@@ -39,6 +48,9 @@ func TablesHealthy(engine *xorm.Engine) error {
 		new(models.UserRepository).TableName(),
 		new(models.ShareBasic).TableName(),
 		new(models.FileEventLog).TableName(),
+		new(models.AgentChatSession).TableName(),
+		new(models.AgentChatMessage).TableName(),
+		new(models.AgentChatCheckpoint).TableName(),
 	}
 	for _, n := range names {
 		ok, err := engine.IsTableExist(n)

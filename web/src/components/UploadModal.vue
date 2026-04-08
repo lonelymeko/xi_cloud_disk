@@ -163,23 +163,26 @@ function retryItem(item: UploadItem) {
 </script>
 
 <template>
-  <div v-show="props.visible" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-    <div class="bg-white rounded-xl shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-      <div class="p-6 border-b border-gray-light">
+  <div v-show="props.visible" class="fixed bottom-6 right-6 z-50 w-[28rem] max-w-[calc(100vw-2rem)]">
+    <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.18)]">
+      <div class="p-4 border-b border-gray-light bg-slate-50">
         <div class="flex items-center justify-between">
-          <h2 class="text-xl font-bold">上传文件</h2>
+          <div>
+            <h2 class="text-base font-bold text-slate-900">上传任务</h2>
+            <p class="text-xs text-slate-500 mt-1">当前目录 ID: {{ props.parentId }}</p>
+          </div>
           <button class="btn-icon-secondary" @click="hide">
             <i class="fa fa-times"></i>
           </button>
         </div>
       </div>
-      <div class="p-6">
-        <div class="border-2 border-dashed border-gray-light rounded-xl p-8 text-center mb-6" @drop="onDrop" @dragover="onDragOver">
-          <div class="w-16 h-16 rounded-full bg-primary bg-opacity-10 text-primary flex items-center justify-center mx-auto mb-4">
+      <div class="p-4 max-h-[70vh] overflow-y-auto">
+        <div class="border-2 border-dashed border-gray-light rounded-xl p-5 text-center mb-4" @drop="onDrop" @dragover="onDragOver">
+          <div class="w-14 h-14 rounded-full bg-primary bg-opacity-10 text-primary flex items-center justify-center mx-auto mb-3">
             <i class="fa fa-cloud-upload text-2xl"></i>
           </div>
-          <h3 class="font-medium mb-2">拖放文件到此处</h3>
-          <p class="text-sm text-gray-medium mb-4">或者</p>
+          <h3 class="font-medium mb-2">拖放文件到这里</h3>
+          <p class="text-sm text-gray-medium mb-3">或选择文件后直接加入上传队列</p>
           <button class="btn-primary" @click="openPicker">
             <i class="fa fa-folder-open"></i>
             <span>选择文件</span>
@@ -213,7 +216,7 @@ function retryItem(item: UploadItem) {
           </div>
         </div>
       </div>
-      <div class="p-6 border-t border-gray-light flex justify-end gap-3">
+      <div class="p-4 border-t border-gray-light flex justify-end gap-3 bg-white">
         <button class="btn-secondary" :disabled="hasUploading" @click="hide">取消</button>
         <button class="btn-primary" :disabled="!hasPending || hasUploading" @click="startUpload">继续上传</button>
       </div>

@@ -5,6 +5,7 @@ package logic
 
 import (
 	"cloud_disk/core/common"
+	"cloud_disk/core/internal/cache"
 	"cloud_disk/core/internal/svc"
 	"cloud_disk/core/internal/types"
 	"context"
@@ -36,6 +37,21 @@ func (l *UploadFileLogic) UploadFile(req *types.UploadFileRequest, isExisted boo
 	if !ok {
 		return nil, errors.New("用户身份验证失败")
 	}
+	meta := cache.UploadTaskMeta{
+		Hash:      hash,
+		Name:      req.Name,
+		Ext:       req.Ext,
+		Size:      req.Size,
+		TaskKey:   cache.BuildUploadTaskUniqueFeature(userIdentity, hash),
+		UpdatedAt: "",
+	}
+	if err := cache.SaveUploadTaskMeta(l.ctx, l.svcCtx.RedisClient, userIdentity, meta); err != nil {
+		logx.Errorf("save upload task meta failed: %v", err)
+	}
+	if err := cache.SetUploadTaskState(l.ctx, l.svcCtx.RedisClient, userIdentity, hash, 1); err != nil {
+		logx.Errorf("set upload task state failed: %v", err)
+	}
+
 	uploadEvent := &types.UploadEvent{
 		UserIdentity:       userIdentity,
 		ParentId:           req.ParentId,

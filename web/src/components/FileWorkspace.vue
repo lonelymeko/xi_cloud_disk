@@ -23,7 +23,6 @@ const sortKey = ref<'name' | 'type' | 'size' | 'updated'>('updated')
 const sortOrder = ref<'asc' | 'desc'>('desc')
 const currentFolderId = ref(0)
 const path = ref<Crumb[]>([{ id: 0, name: '我的文件' }])
-const source = ref<'api' | 'mock'>((localStorage.getItem('fw_source') as 'api' | 'mock') || 'api')
 const list = ref<UserFile[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -103,42 +102,6 @@ function isImageFile(item: UserFile | null) {
 
 function supportsDirectUrlCopy(item: UserFile | null) {
   return isVideoFile(item) || isImageFile(item)
-}
-
-type MockNode = UserFile & { parent_id: number }
-const mockNodes = ref<MockNode[]>([
-  { id: 1, identity: 'mk-folder-1', name: '工作文档', ext: '', size: 0, repository_identity: '', updated_at: '2026-02-01 09:00:00', parent_id: 0 },
-  { id: 2, identity: 'mk-folder-2', name: '照片', ext: '', size: 0, repository_identity: '', updated_at: '2026-02-01 09:10:00', parent_id: 0 },
-  { id: 3, identity: 'mk-folder-3', name: '空文件夹', ext: '', size: 0, repository_identity: '', updated_at: '2026-02-01 09:20:00', parent_id: 0 },
-  { id: 4, identity: 'mk-file-4', name: '发布说明.txt', ext: '.txt', size: 1024 * 121, repository_identity: 'repo-m-4', updated_at: '2026-02-01 11:30:00', parent_id: 0 },
-  { id: 5, identity: 'mk-file-5', name: '照片合集.zip', ext: '.zip', size: 1024 * 1024 * 80.3, repository_identity: 'repo-m-5', updated_at: '2026-02-02 09:30:00', parent_id: 0 },
-
-  { id: 11, identity: 'mk-folder-11', name: '2024 年度报告', ext: '', size: 0, repository_identity: '', updated_at: '2026-02-02 10:00:00', parent_id: 1 },
-  { id: 12, identity: 'mk-file-12', name: '会议纪要.docx', ext: '.docx', size: 1024 * 1024 * 11.2, repository_identity: 'repo-m-12', updated_at: '2026-02-02 11:00:00', parent_id: 1 },
-  { id: 13, identity: 'mk-file-13', name: '预算表.xlsx', ext: '.xlsx', size: 1024 * 1024 * 1.5, repository_identity: 'repo-m-13', updated_at: '2026-02-02 11:40:00', parent_id: 1 },
-
-  { id: 21, identity: 'mk-file-21', name: '2024-01.jpg', ext: '.jpg', size: 1024 * 1200, repository_identity: 'repo-m-21', updated_at: '2026-02-03 08:00:00', parent_id: 2 },
-  { id: 22, identity: 'mk-file-22', name: '产品视频.mp4', ext: '.mp4', size: 1024 * 1024 * 555.5, repository_identity: 'repo-m-22', updated_at: '2026-02-03 20:00:00', parent_id: 2 },
-  { id: 23, identity: 'mk-folder-23', name: '子文件夹A', ext: '', size: 0, repository_identity: '', updated_at: '2026-02-03 21:00:00', parent_id: 2 },
-
-  { id: 24, identity: 'mk-file-24', name: '音频样例.mp3', ext: '.mp3', size: 1024 * 1024 * 27.1, repository_identity: 'repo-m-24', updated_at: '2026-02-04 12:00:00', parent_id: 23 },
-  { id: 25, identity: 'mk-folder-25', name: '嵌套子文件夹B', ext: '', size: 0, repository_identity: '', updated_at: '2026-02-04 13:00:00', parent_id: 23 },
-  { id: 26, identity: 'mk-file-26', name: '文档示例.pdf', ext: '.pdf', size: 1024 * 1024 * 8.3, repository_identity: 'repo-m-26', updated_at: '2026-02-04 14:00:00', parent_id: 25 },
-])
-
-function getMockList(pid: number, pageNum: number, sizeNum: number) {
-  const rows = mockNodes.value.filter((n) => n.parent_id === pid)
-  const totalCount = rows.length
-  const start = (pageNum - 1) * sizeNum
-  const listData = rows.slice(start, start + sizeNum)
-  return { list: listData, count: totalCount }
-}
-
-function setSource(value: 'api' | 'mock') {
-  source.value = value
-  localStorage.setItem('fw_source', value)
-  page.value = 1
-  refresh()
 }
 
 const supported = computed(() => ['文件资源管理器', '图片', '视频', '音频', '文档', '压缩包'].includes(props.active))
@@ -346,24 +309,19 @@ async function refresh() {
   
   try {
     let data: { list: UserFile[]; count: number }
-    if (source.value === 'mock') {
-      const mock = getMockList(currentFolderId.value, page.value, pageSize.value)
-      data = { list: mock.list, count: mock.count }
-    } else {
-      // 添加请求超时控制
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 10000) // 10秒超时
-      
-      try {
-        data = await getUserFileList(currentFolderId.value, page.value, pageSize.value, token)
-        clearTimeout(timeoutId)
-      } catch (err: any) {
-        clearTimeout(timeoutId)
-        if (err.name === 'AbortError') {
-          throw new Error('请求超时')
-        }
-        throw err
+    // 添加请求超时控制
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000)
+    
+    try {
+      data = await getUserFileList(currentFolderId.value, page.value, pageSize.value, token)
+      clearTimeout(timeoutId)
+    } catch (err: any) {
+      clearTimeout(timeoutId)
+      if (err.name === 'AbortError') {
+        throw new Error('请求超时')
       }
+      throw err
     }
     
     // 检查是否是最新的请求
@@ -712,8 +670,6 @@ watch(() => sentinelRef.value, (el) => {
     <template v-else>
       <FileToolbar :view="view" :sort-key="sortKey" :sort-order="sortOrder" :loading="loading" @open-upload="onOpenUpload" @create-folder="openCreateFolder" @change-view="view = $event" @change-sort-key="onToolbarSortKeyChange" @change-sort-order="sortOrder = $event" />
       <div class="flex items-center gap-2 mb-4">
-        <button class="btn-secondary" :class="{ 'active-view': source === 'api' }" @click="setSource('api')">真实数据</button>
-        <button class="btn-secondary" :class="{ 'active-view': source === 'mock' }" @click="setSource('mock')">模拟数据</button>
         <button class="btn-secondary" :class="{ 'active-view': infiniteMode }" @click="infiniteMode = !infiniteMode">滚动加载</button>
       </div>
       <div v-if="error" class="mb-4 text-sm text-red-500">{{ error }}</div>

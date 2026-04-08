@@ -14,7 +14,6 @@ const confirmPassword = ref('')
 const passwordLoading = ref(false)
 const passwordError = ref('')
 
-const homeSource = ref<'mock' | 'api'>('mock')
 const homeLoading = ref(false)
 const homeError = ref('')
 const homeList = ref<UserFile[]>([])
@@ -40,20 +39,6 @@ function observeContainers() {
   if (doughnutContainerRef.value) resizeObserver.value.observe(doughnutContainerRef.value)
   if (barContainerRef.value) resizeObserver.value.observe(barContainerRef.value)
 }
-
-const mockFiles: UserFile[] = [
-  { id: 1, identity: 'mock-1', name: '产品手册.pdf', ext: '.pdf', size: 1862400, repository_identity: 'repo-1', updated_at: '2026-02-01 10:24:00' },
-  { id: 2, identity: 'mock-2', name: '年终总结.pptx', ext: '.pptx', size: 8243200, repository_identity: 'repo-2', updated_at: '2026-02-02 09:18:00' },
-  { id: 3, identity: 'mock-3', name: '产品视频.mp4', ext: '.mp4', size: 582432000, repository_identity: 'repo-3', updated_at: '2026-02-03 19:45:00' },
-  { id: 4, identity: 'mock-4', name: '会议录音.mp3', ext: '.mp3', size: 28432000, repository_identity: 'repo-4', updated_at: '2026-01-28 08:12:00' },
-  { id: 5, identity: 'mock-5', name: '项目截图.png', ext: '.png', size: 1240000, repository_identity: 'repo-5', updated_at: '2026-01-26 16:33:00' },
-  { id: 6, identity: 'mock-6', name: '设计稿.psd', ext: '.psd', size: 82432000, repository_identity: 'repo-6', updated_at: '2026-01-31 14:20:00' },
-  { id: 7, identity: 'mock-7', name: '预算表.xlsx', ext: '.xlsx', size: 1520000, repository_identity: 'repo-7', updated_at: '2026-01-29 11:02:00' },
-  { id: 8, identity: 'mock-8', name: '照片合集.zip', ext: '.zip', size: 84243200, repository_identity: 'repo-8', updated_at: '2026-02-01 21:30:00' },
-  { id: 9, identity: 'mock-9', name: '发布说明.txt', ext: '.txt', size: 124000, repository_identity: 'repo-9', updated_at: '2026-01-25 09:40:00' },
-  { id: 10, identity: 'mock-10', name: '销售数据.csv', ext: '.csv', size: 342000, repository_identity: 'repo-10', updated_at: '2026-02-04 13:05:00' },
-]
-
 
 function openPassword() {
   passwordOpen.value = true
@@ -275,19 +260,14 @@ async function loadHomeData() {
   homeError.value = ''
   homeLoading.value = true
   try {
-    if (homeSource.value === 'mock') {
-      homeList.value = mockFiles
-      homeTotal.value = mockFiles.length
-    } else {
-      const token = getToken()
-      if (!token) {
-        homeError.value = '登录已失效，请重新登录'
-        return
-      }
-      const data = await getUserFileList(0, 1, 200, token)
-      homeList.value = data.list || []
-      homeTotal.value = data.count || 0
+    const token = getToken()
+    if (!token) {
+      homeError.value = '登录已失效，请重新登录'
+      return
     }
+    const data = await getUserFileList(0, 1, 200, token)
+    homeList.value = data.list || []
+    homeTotal.value = data.count || 0
     await nextTick()
     homeReady.value = true
     buildCharts()
@@ -321,10 +301,6 @@ watch(() => props.active, async () => {
     }
     if (props.active === '已分享') loadShares()
   }
-})
-
-watch(homeSource, () => {
-  if (props.active === '首页') loadHomeData()
 })
 
 watch(() => fileTypes.value.map((item) => `${item.key}:${item.count}:${item.size}`).join('|'), async () => {
@@ -473,10 +449,6 @@ function copyShareLink(identity: string) {
           <h2 class="text-xl font-semibold">数据看板</h2>
           <p class="text-sm text-gray-medium">基于文件列表的类型统计与占比分析</p>
         </div>
-        <div class="flex items-center gap-2">
-          <button class="btn-secondary" :class="{ 'active-view': homeSource === 'mock' }" @click="homeSource = 'mock'">模拟数据</button>
-          <button class="btn-secondary" :class="{ 'active-view': homeSource === 'api' }" @click="homeSource = 'api'">真实数据</button>
-        </div>
       </div>
       <div v-if="homeError" class="mb-4 text-sm text-red-500">{{ homeError }}</div>
       <div v-else-if="homeLoading" class="mb-4 text-sm text-gray-medium">加载中...</div>
@@ -524,7 +496,7 @@ function copyShareLink(identity: string) {
               </div>
               <div class="flex items-center justify-between">
                 <span class="text-gray-medium">数据源</span>
-                <span class="font-medium">{{ homeSource === 'mock' ? '模拟数据' : '真实接口' }}</span>
+                <span class="font-medium">真实接口</span>
               </div>
             </div>
           </div>

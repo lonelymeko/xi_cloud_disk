@@ -104,12 +104,12 @@ type ShareDownloadURLResponse struct {
 }
 
 type UploadFileRequest struct {
-	Hash     string `json:"hash,optional"`
-	Name     string `json:"name,optional"`
-	Ext      string `json:"ext,optional"`
-	Size     int64  `json:"size,optional"`
-	Path     string `json:"path,optional"`
-	ParentId int64  `json:"parent_id,optional"`
+	Hash     string `json:"hash,optional" form:"hash,optional"`
+	Name     string `json:"name,optional" form:"name,optional"`
+	Ext      string `json:"ext,optional" form:"ext,optional"`
+	Size     int64  `json:"size,optional" form:"size,optional"`
+	Path     string `json:"path,optional" form:"path,optional"`
+	ParentId int64  `json:"parent_id,optional" form:"parent_id,optional"`
 }
 
 type UploadFileResponse struct {
