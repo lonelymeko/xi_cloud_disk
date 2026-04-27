@@ -67,3 +67,7 @@ web/demo/
 reference-project/
 core/bloom_filter.data
 docs/nginx-www.xixiu.top-cloud-disk.conf
+core_linux
+core/core_linux
+cloud_disk
+core/.env
