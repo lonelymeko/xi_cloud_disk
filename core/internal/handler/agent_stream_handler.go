@@ -1,9 +1,16 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"net"
 	"net/http"
+	"strings"
+	"syscall"
+	"time"
 
 	"cloud_disk/core/common"
 	"cloud_disk/core/internal/agent/einoagent"
@@ -25,6 +32,8 @@ type agentStreamPayload struct {
 	Error            string                       `json:"error,omitempty"`
 }
 
+var agentStreamHeartbeatInterval = 15 * time.Second
+
 func AgentChatStreamHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.AgentChatRequest
@@ -38,11 +47,10 @@ func AgentChatStreamHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		}
 
 		l := logic.NewAgentChatLogic(r.Context(), svcCtx)
-		if _, err := l.StreamChat(&req, func(chunk einoagent.StreamChunk) error {
-			return writeSSE(w, toAgentStreamPayload(chunk))
-		}); err != nil {
-			_ = writeSSE(w, agentStreamPayload{Type: "error", Error: err.Error()})
-		}
+		streamAgent(w, r, func(emit func(einoagent.StreamChunk) error) error {
+			_, err := l.StreamChat(&req, emit)
+			return err
+		})
 	}
 }
 
@@ -59,11 +67,37 @@ func AgentResumeStreamHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		}
 
 		l := logic.NewAgentChatLogic(r.Context(), svcCtx)
-		if _, err := l.StreamResume(&req, func(chunk einoagent.StreamChunk) error {
-			return writeSSE(w, toAgentStreamPayload(chunk))
-		}); err != nil {
-			_ = writeSSE(w, agentStreamPayload{Type: "error", Error: err.Error()})
+		streamAgent(w, r, func(emit func(einoagent.StreamChunk) error) error {
+			_, err := l.StreamResume(&req, emit)
+			return err
+		})
+	}
+}
+
+func streamAgent(w http.ResponseWriter, r *http.Request, run func(func(einoagent.StreamChunk) error) error) {
+	ctx := r.Context()
+	msgCh := make(chan agentStreamPayload, 16)
+	runErrCh := make(chan error, 1)
+
+	go func() {
+		defer close(msgCh)
+		if err := sendStreamPayload(ctx, msgCh, agentStreamPayload{Type: "stream_ready"}); err != nil {
+			runErrCh <- err
+			return
 		}
+		err := run(func(chunk einoagent.StreamChunk) error {
+			return sendStreamPayload(ctx, msgCh, toAgentStreamPayload(chunk))
+		})
+		if err != nil && !isClientGone(err) {
+			_ = sendStreamPayload(ctx, msgCh, agentStreamPayload{Type: "error", Error: err.Error()})
+		}
+		runErrCh <- err
+	}()
+
+	writeErr := writeSSELoop(ctx, w, msgCh)
+	runErr := <-runErrCh
+	if isClientGone(writeErr) || isClientGone(runErr) {
+		return
 	}
 }
 
@@ -81,6 +115,38 @@ func prepareSSE(w http.ResponseWriter) bool {
 	return true
 }
 
+func writeSSELoop(ctx context.Context, w http.ResponseWriter, msgCh <-chan agentStreamPayload) error {
+	ticker := time.NewTicker(agentStreamHeartbeatInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case payload, ok := <-msgCh:
+			if !ok {
+				return nil
+			}
+			if err := writeSSE(w, payload); err != nil {
+				return err
+			}
+		case <-ticker.C:
+			if err := writeSSE(w, agentStreamPayload{Type: "heartbeat"}); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func sendStreamPayload(ctx context.Context, msgCh chan<- agentStreamPayload, payload agentStreamPayload) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case msgCh <- payload:
+		return nil
+	}
+}
+
 func writeSSE(w http.ResponseWriter, payload agentStreamPayload) error {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -95,6 +161,20 @@ func writeSSE(w http.ResponseWriter, payload agentStreamPayload) error {
 	}
 	flusher.Flush()
 	return nil
+}
+
+func isClientGone(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) {
+		return true
+	}
+	if errors.Is(err, syscall.EPIPE) || errors.Is(err, syscall.ECONNRESET) {
+		return true
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "broken pipe") || strings.Contains(msg, "connection reset by peer")
 }
 
 func toAgentStreamPayload(chunk einoagent.StreamChunk) agentStreamPayload {

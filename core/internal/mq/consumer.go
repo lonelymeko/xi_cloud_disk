@@ -171,7 +171,7 @@ func (c *Consumer) processFile(body []byte) (err error) {
 		var actualSize int64          // 实际上传的文件大小
 		var finalUploadPath string    // 最终要上传的文件路径（用于分片上传）
 
-		if videoExts[task.Ext] {
+		if videoExts[task.Ext] && task.Size > common.MultipartUploadThreshold {
 			logx.Info("是视频文件，需要压缩")
 			// 是视频文件，需要压缩
 			compressedFile, createErr := os.CreateTemp("", "compressed-*.mp4")
@@ -266,7 +266,16 @@ func (c *Consumer) processFile(body []byte) (err error) {
 
 		// 业务层按环境变量选择存储实现（OSS/TOS）。
 		_ = cache.SetUploadTaskState(c.ctx, c.svcCtx.RedisClient, task.UserIdentity, task.Hash, 2)
-		OssPath, err := c.uploadByStorageType(uploadFile, tempFile, finalUploadPath, uploadFilename, actualSize)
+		uploadStartedAt := time.Now()
+		OssPath, err := c.uploadByStorageType(uploadFile, tempFile, finalUploadPath, uploadFilename, actualSize, task.Hash)
+		uploadElapsed := time.Since(uploadStartedAt)
+		if err != nil {
+			logx.Errorf("上传对象存储失败，文件名: %s，上传文件总大小: %s，耗时: %s，错误: %v",
+				uploadFilename, formatUploadSize(actualSize), uploadElapsed.Round(time.Millisecond), err)
+		} else {
+			logx.Infof("上传对象存储完成，文件名: %s，ObjectKey: %s，上传文件总大小: %s，耗时: %s",
+				uploadFilename, OssPath, formatUploadSize(actualSize), uploadElapsed.Round(time.Millisecond))
+		}
 
 		// 上传完成后，立即清理压缩文件
 		if compressedFilePath != "" {
@@ -316,41 +325,42 @@ func (c *Consumer) processFile(body []byte) (err error) {
 
 }
 
-func (c *Consumer) uploadByStorageType(uploadFile, tempFile *os.File, finalUploadPath, uploadFilename string, actualSize int64) (string, error) {
+func formatUploadSize(size int64) string {
+	const unit = 1024
+	if size < unit {
+		return fmt.Sprintf("%d B", size)
+	}
+
+	value := float64(size)
+	for _, unitName := range []string{"KB", "MB", "GB", "TB"} {
+		value /= unit
+		if value < unit {
+			return fmt.Sprintf("%.2f %s", value, unitName)
+		}
+	}
+	return fmt.Sprintf("%.2f PB", value/unit)
+}
+
+func (c *Consumer) uploadByStorageType(uploadFile, tempFile *os.File, finalUploadPath, uploadFilename string, actualSize int64, hash string) (string, error) {
 	storageType := strings.ToLower(strings.TrimSpace(os.Getenv("STORAGE_TYPE")))
 	if storageType == "" {
 		storageType = "oss"
 	}
-
-	if storageType == "tos" {
-		if actualSize > common.MultipartUploadThreshold {
-			logx.Infof("文件大小 %.2f MB 超过阈值，使用 TOS 分片上传", float64(actualSize)/(1024*1024))
-			if uploadFile != tempFile {
-				uploadFile.Close()
-			}
-			return c.uploadMultipartViaStorage(finalUploadPath, uploadFilename, actualSize)
-		}
-
-		logx.Infof("文件大小 %.2f KB 小于阈值，使用 TOS 普通上传", float64(actualSize)/1024)
-		if _, err := uploadFile.Seek(0, 0); err != nil {
-			return "", err
-		}
-		return c.uploadSingleViaStorage(uploadFile, uploadFilename, actualSize)
-	}
+	storageName := strings.ToUpper(storageType)
 
 	if actualSize > common.MultipartUploadThreshold {
-		logx.Infof("文件大小 %.2f MB 超过阈值，使用 OSS 分片上传", float64(actualSize)/(1024*1024))
+		logx.Infof("文件大小 %.2f MB 超过阈值，使用 %s 统一接口分片上传", float64(actualSize)/(1024*1024), storageName)
 		if uploadFile != tempFile {
 			uploadFile.Close()
 		}
-		return utils.UploadToOSSMultipart(finalUploadPath, uploadFilename, actualSize)
+		return c.uploadMultipartViaStorage(finalUploadPath, uploadFilename, actualSize, hash)
 	}
 
-	logx.Infof("文件大小 %.2f KB 小于阈值，使用 OSS 普通上传", float64(actualSize)/1024)
+	logx.Infof("文件大小 %.2f KB 小于阈值，使用 %s 统一接口普通上传", float64(actualSize)/1024, storageName)
 	if _, err := uploadFile.Seek(0, 0); err != nil {
 		return "", err
 	}
-	return utils.UploadToOSS(uploadFile, uploadFilename)
+	return c.uploadSingleViaStorage(uploadFile, uploadFilename, actualSize)
 }
 
 func (c *Consumer) uploadSingleViaStorage(uploadFile *os.File, uploadFilename string, actualSize int64) (string, error) {
@@ -374,7 +384,7 @@ func (c *Consumer) uploadSingleViaStorage(uploadFile *os.File, uploadFilename st
 	return objectKey, nil
 }
 
-func (c *Consumer) uploadMultipartViaStorage(filePath, uploadFilename string, fileSize int64) (string, error) {
+func (c *Consumer) uploadMultipartViaStorage(filePath, uploadFilename string, fileSize int64, hash string) (string, error) {
 	storage, err := utils.GetStorage()
 	if err != nil {
 		return "", err
@@ -397,17 +407,39 @@ func (c *Consumer) uploadMultipartViaStorage(filePath, uploadFilename string, fi
 	ctx, cancel := context.WithTimeout(c.ctx, timeout)
 	defer cancel()
 
-	uploadID, err := storage.InitiateMultipartUpload(ctx, objectKey, contentType)
-	if err != nil {
-		return "", fmt.Errorf("初始化分片上传失败: %w", err)
+	uploadID := ""
+	if session, ok, sessionErr := cache.GetMultipartUploadSession(ctx, c.svcCtx.RedisClient, hash); sessionErr != nil {
+		logx.Errorf("读取分片上传会话缓存失败: %v", sessionErr)
+	} else if ok && (session.FileSize == 0 || session.FileSize == fileSize) {
+		uploadID = session.UploadID
+		objectKey = session.ObjectKey
+		logx.Infof("复用分片上传会话，ObjectKey: %s，UploadID: %s", objectKey, uploadID)
+	} else if ok {
+		if err := cache.ClearUploadPartState(ctx, c.svcCtx.RedisClient, hash); err != nil {
+			logx.Errorf("清理过期分片上传缓存失败: %v", err)
+		}
+	}
+	if uploadID == "" {
+		if err := cache.ClearUploadPartState(ctx, c.svcCtx.RedisClient, hash); err != nil {
+			logx.Errorf("清理旧分片上传缓存失败: %v", err)
+		}
+		uploadID, err = storage.InitiateMultipartUpload(ctx, objectKey, contentType)
+		if err != nil {
+			return "", fmt.Errorf("初始化分片上传失败: %w", err)
+		}
+		if err := cache.SaveMultipartUploadSession(ctx, c.svcCtx.RedisClient, hash, cache.MultipartUploadSession{
+			UploadID:  uploadID,
+			ObjectKey: objectKey,
+			FileSize:  fileSize,
+		}); err != nil {
+			logx.Errorf("保存分片上传会话缓存失败: %v", err)
+		}
 	}
 
 	success := false
 	defer func() {
 		if !success {
-			abortCtx, abortCancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer abortCancel()
-			_ = storage.AbortMultipartUpload(abortCtx, objectKey, uploadID)
+			logx.Errorf("分片上传未完成，保留 UploadID 以便任务重试复用: ObjectKey=%s, UploadID=%s", objectKey, uploadID)
 		}
 	}()
 
@@ -420,8 +452,20 @@ func (c *Consumer) uploadMultipartViaStorage(filePath, uploadFilename string, fi
 	partSize := int64(common.PartSize)
 	totalParts := (fileSize + partSize - 1) / partSize
 	parts := make([]utils.Part, 0, totalParts)
+	uploadedPartETags, err := cache.GetUploadedPartETags(ctx, c.svcCtx.RedisClient, hash)
+	if err != nil {
+		logx.Errorf("读取已上传分片缓存失败: %v", err)
+		uploadedPartETags = map[int]string{}
+	}
 
 	for i := int64(0); i < totalParts; i++ {
+		partNumber := int(i + 1)
+		if etag := uploadedPartETags[partNumber]; etag != "" {
+			parts = append(parts, utils.Part{PartNumber: partNumber, ETag: etag})
+			logx.Infof("跳过已上传分片 %d/%d", partNumber, totalParts)
+			continue
+		}
+
 		offset := i * partSize
 		currentPartSize := partSize
 		if offset+currentPartSize > fileSize {
@@ -435,13 +479,16 @@ func (c *Consumer) uploadMultipartViaStorage(filePath, uploadFilename string, fi
 		}
 
 		partCtx, partCancel := context.WithTimeout(ctx, 3*time.Minute)
-		etag, uploadErr := storage.UploadPart(partCtx, objectKey, uploadID, int(i+1), bytes.NewReader(partData[:n]), int64(n))
+		etag, uploadErr := storage.UploadPart(partCtx, objectKey, uploadID, partNumber, bytes.NewReader(partData[:n]), int64(n))
 		partCancel()
 		if uploadErr != nil {
-			return "", fmt.Errorf("上传分片 %d 失败: %w", i+1, uploadErr)
+			return "", fmt.Errorf("上传分片 %d 失败: %w", partNumber, uploadErr)
+		}
+		if err := cache.SetUploadPartState(ctx, c.svcCtx.RedisClient, hash, partNumber, etag); err != nil {
+			logx.Errorf("保存分片 %d 缓存失败: %v", partNumber, err)
 		}
 
-		parts = append(parts, utils.Part{PartNumber: int(i + 1), ETag: etag})
+		parts = append(parts, utils.Part{PartNumber: partNumber, ETag: etag})
 	}
 
 	completeCtx, completeCancel := context.WithTimeout(ctx, 1*time.Minute)
@@ -451,6 +498,9 @@ func (c *Consumer) uploadMultipartViaStorage(filePath, uploadFilename string, fi
 	}
 
 	success = true
+	if err := cache.ClearUploadPartState(context.Background(), c.svcCtx.RedisClient, hash); err != nil {
+		logx.Errorf("清理分片上传缓存失败: %v", err)
+	}
 	return objectKey, nil
 }
 

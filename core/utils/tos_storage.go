@@ -13,8 +13,9 @@ import (
 
 // TOSStorage TOS 存储实现
 type TOSStorage struct {
-	client *tos.ClientV2
-	bucket string
+	client        *tos.ClientV2
+	presignClient *tos.ClientV2
+	bucket        string
 }
 
 // newTOSStorage 创建 TOS 存储实例
@@ -23,19 +24,32 @@ func newTOSStorage(cfg StorageConfig) (*TOSStorage, error) {
 		return nil, fmt.Errorf("TOS storage requires Endpoint, Region, and BucketName")
 	}
 
-	// 创建 TOS 客户端
-	client, err := tos.NewClientV2(cfg.Endpoint,
-		tos.WithRegion(cfg.Region),
-		tos.WithCredentials(tos.NewStaticCredentials(cfg.AccessKeyID, cfg.AccessKeySecret)),
-	)
+	client, err := newTOSClient(cfg.Endpoint, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create TOS client: %w", err)
 	}
 
+	presignClient := client
+	if cfg.PresignEndpoint != "" && cfg.PresignEndpoint != cfg.Endpoint {
+		presignClient, err = newTOSClient(cfg.PresignEndpoint, cfg)
+		if err != nil {
+			client.Close()
+			return nil, fmt.Errorf("failed to create TOS presign client: %w", err)
+		}
+	}
+
 	return &TOSStorage{
-		client: client,
-		bucket: cfg.BucketName,
+		client:        client,
+		presignClient: presignClient,
+		bucket:        cfg.BucketName,
 	}, nil
+}
+
+func newTOSClient(endpoint string, cfg StorageConfig) (*tos.ClientV2, error) {
+	return tos.NewClientV2(endpoint,
+		tos.WithRegion(cfg.Region),
+		tos.WithCredentials(tos.NewStaticCredentials(cfg.AccessKeyID, cfg.AccessKeySecret)),
+	)
 }
 
 // PutObject 上传单个对象
@@ -141,7 +155,7 @@ func (s *TOSStorage) AbortMultipartUpload(ctx context.Context, key string, uploa
 
 // GetPresignedURL 生成预签名 URL
 func (s *TOSStorage) GetPresignedURL(ctx context.Context, key string, expires time.Duration) (string, error) {
-	result, err := s.client.PreSignedURL(&tos.PreSignedURLInput{
+	result, err := s.presignClient.PreSignedURL(&tos.PreSignedURLInput{
 		HTTPMethod: http.MethodGet,
 		Bucket:     s.bucket,
 		Key:        key,
@@ -156,5 +170,8 @@ func (s *TOSStorage) GetPresignedURL(ctx context.Context, key string, expires ti
 // Close 关闭存储连接
 func (s *TOSStorage) Close() error {
 	s.client.Close()
+	if s.presignClient != s.client {
+		s.presignClient.Close()
+	}
 	return nil
 }

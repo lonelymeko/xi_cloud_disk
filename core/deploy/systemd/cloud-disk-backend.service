@@ -1,0 +1,25 @@
+[Unit]
+Description=Cloud Disk Backend API
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/cloud_disk/backend
+EnvironmentFile=/home/cloud_disk/backend/cloud-disk-backend.env
+ExecStart=/home/cloud_disk/backend/core_linux -f /home/cloud_disk/backend/core-api.yaml
+Restart=always
+RestartSec=3
+StandardOutput=append:/home/cloud_disk/backend/go-backend.log
+StandardError=append:/home/cloud_disk/backend/go-backend.log
+
+# Tighten file permissions for service-created files.
+UMask=0077
+
+# Give the process enough time to stop cleanly.
+TimeoutStopSec=20
+KillSignal=SIGTERM
+
+[Install]
+WantedBy=multi-user.target

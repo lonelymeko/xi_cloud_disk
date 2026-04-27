@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	einomodel "github.com/cloudwego/eino/components/model"
 	einotool "github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/schema"
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 type imageAnalysisTool struct {
@@ -37,6 +39,7 @@ func (t *imageAnalysisTool) Info(_ context.Context) (*schema.ToolInfo, error) {
 }
 
 func (t *imageAnalysisTool) InvokableRun(ctx context.Context, argumentsInJSON string, _ ...einotool.Option) (string, error) {
+	start := time.Now()
 	var input imageAnalysisInput
 	if err := json.Unmarshal([]byte(argumentsInJSON), &input); err != nil {
 		return "", err
@@ -74,8 +77,10 @@ func (t *imageAnalysisTool) InvokableRun(ctx context.Context, argumentsInJSON st
 		UserInputMultiContent: parts,
 	}})
 	if err != nil {
+		logx.Errorf("image tool stage=model_failed files=%d duration=%s err=%v", len(input.Files), time.Since(start), err)
 		return "", err
 	}
+	logx.Infof("image tool stage=model_completed files=%d duration=%s reply_len=%d", len(input.Files), time.Since(start), len(strings.TrimSpace(resp.Content)))
 	return strings.TrimSpace(resp.Content), nil
 }
 

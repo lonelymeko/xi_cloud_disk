@@ -12,6 +12,24 @@
 
 ## 🆕 最新更新
 
+### v2.5.0 (2026-04-27)
+
+#### ☁️ TOS 与上传稳定性
+- **TOS 预签名 Endpoint 独立配置**：新增 `VOLCENGINE_PRESIGN_ENDPOINT`，支持上传访问端点和下载预签名端点分开配置，适配内外网或自定义域名场景
+- **统一存储分片上传**：大文件上传改为通过统一存储接口处理，OSS / TOS 都走同一套普通上传与分片上传流程
+- **可恢复分片上传会话**：Redis 记录 `UploadID`、ObjectKey、文件大小和已上传分片 ETag，MQ 重试时可跳过已成功分片，完成后自动清理缓存
+- **上传链路日志增强**：补充分片上传、对象存储上传耗时、文件大小和失败原因日志，便于定位大文件上传问题
+
+#### 🤖 Agent 与多媒体能力
+- **SSE 流式稳定性增强**：流接口新增 `stream_ready` 与 `heartbeat` 事件，并兼容客户端断开、broken pipe、connection reset 等场景
+- **Agent 调用链路观测**：对流式对话、恢复执行、工具调用、PDF 提取、图片分析、视频处理等关键阶段增加耗时日志
+- **视频工具升级**：视频分析改为提取关键帧与音频转写素材，音频通过 Qwen-ASR 兼容接口识别，长音频会自动切分后合并结果
+- **文档工具职责调整**：文档工具只返回受控的源文件上下文，最终回答交回 Agent 统一生成，减少嵌套模型调用
+
+#### 🚀 部署
+- 新增 `core/deploy/systemd/cloud-disk-backend.service` 与部署说明，用于在 Linux 服务器通过 systemd 托管后端进程
+- 新增 `core/.gitignore`，默认忽略 `deploy/systemd/*.env`，避免将服务器真实环境变量提交到仓库
+
 ### v2.4.0 (2026-04-07)
 
 #### 🤖 Eino Agent 集成（本次重点）
@@ -234,6 +252,19 @@ OPENAI_API_KEY=your_api_key
 OPENAI_MODEL=your_chat_model
 OPENAI_BASE_URL=https://your-openai-compatible-endpoint/v1
 OPENAI_BY_AZURE=false
+
+# 视频 ASR 配置（可选；未配置时回退使用 OPENAI_*）
+ASR_API_KEY=your_asr_api_key
+ASR_MODEL=qwen3-asr-flash
+ASR_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+
+# 火山引擎 TOS 配置（STORAGE_TYPE=tos 时启用）
+VOLCENGINE_ACCESS_KEY_ID=your_tos_access_key
+VOLCENGINE_SECRET_ACCESS_KEY=your_tos_secret_key
+VOLCENGINE_REGION=cn-beijing
+VOLCENGINE_ENDPOINT=tos-cn-beijing.ivolces.com
+VOLCENGINE_PRESIGN_ENDPOINT=tos-cn-beijing.volces.com
+VOLCENGINE_BUCKET_NAME=your-tos-bucket
 ```
 
 ### 4. 数据库初始化
@@ -256,7 +287,29 @@ go build -o cloud_disk core.go
 
 服务启动后，访问 `http://localhost:8888`
 
-### 6. RabbitMQ 配置（可选但推荐）
+### 6. systemd 部署（Linux）
+
+仓库提供了 `core/deploy/systemd/cloud-disk-backend.service` 作为后端服务模板。环境变量文件建议放在服务器本地，例如 `/home/cloud_disk/backend/cloud-disk-backend.env`，不要提交到 Git。
+
+```bash
+cd core
+cp deploy/systemd/cloud-disk-backend.service /etc/systemd/system/cloud-disk-backend.service
+cp deploy/systemd/cloud-disk-backend.env.example /home/cloud_disk/backend/cloud-disk-backend.env
+chmod 600 /home/cloud_disk/backend/cloud-disk-backend.env
+systemctl daemon-reload
+systemctl enable --now cloud-disk-backend
+```
+
+常用命令：
+
+```bash
+systemctl status cloud-disk-backend
+systemctl restart cloud-disk-backend
+journalctl -u cloud-disk-backend -f
+tail -f /home/cloud_disk/backend/go-backend.log
+```
+
+### 7. RabbitMQ 配置（可选但推荐）
 
 #### MacOS 安装 RabbitMQ
 

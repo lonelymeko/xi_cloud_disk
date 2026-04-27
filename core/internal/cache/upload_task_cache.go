@@ -21,6 +21,13 @@ type UploadTaskMeta struct {
 	UpdatedAt string `json:"updated_at"`
 }
 
+// MultipartUploadSession 记录可恢复的分片上传会话。
+type MultipartUploadSession struct {
+	UploadID  string
+	ObjectKey string
+	FileSize  int64
+}
+
 func BuildUploadTaskUniqueFeature(userIdentity, hash string) string {
 	return fmt.Sprintf("%s:%s", userIdentity, hash)
 }
@@ -121,6 +128,68 @@ func SetUploadPartState(ctx context.Context, rdb svc.RedisClient, md5 string, pa
 		return err
 	}
 	return rdb.Expire(ctx, key, common.UploadTaskTTL).Err()
+}
+
+func SaveMultipartUploadSession(ctx context.Context, rdb svc.RedisClient, md5 string, session MultipartUploadSession) error {
+	if md5 == "" || session.UploadID == "" || session.ObjectKey == "" {
+		return nil
+	}
+	key := BuildUploadTaskHashKey(md5)
+	if err := rdb.HSet(ctx, key,
+		"__upload_id", session.UploadID,
+		"__object_key", session.ObjectKey,
+		"__file_size", strconv.FormatInt(session.FileSize, 10),
+	).Err(); err != nil {
+		return err
+	}
+	return rdb.Expire(ctx, key, common.UploadTaskTTL).Err()
+}
+
+func GetMultipartUploadSession(ctx context.Context, rdb svc.RedisClient, md5 string) (MultipartUploadSession, bool, error) {
+	if md5 == "" {
+		return MultipartUploadSession{}, false, nil
+	}
+	items, err := rdb.HGetAll(ctx, BuildUploadTaskHashKey(md5)).Result()
+	if err != nil {
+		return MultipartUploadSession{}, false, err
+	}
+	uploadID := items["__upload_id"]
+	objectKey := items["__object_key"]
+	if uploadID == "" || objectKey == "" {
+		return MultipartUploadSession{}, false, nil
+	}
+	fileSize, _ := strconv.ParseInt(items["__file_size"], 10, 64)
+	return MultipartUploadSession{
+		UploadID:  uploadID,
+		ObjectKey: objectKey,
+		FileSize:  fileSize,
+	}, true, nil
+}
+
+func GetUploadedPartETags(ctx context.Context, rdb svc.RedisClient, md5 string) (map[int]string, error) {
+	if md5 == "" {
+		return map[int]string{}, nil
+	}
+	items, err := rdb.HGetAll(ctx, BuildUploadTaskHashKey(md5)).Result()
+	if err != nil {
+		return nil, err
+	}
+	parts := make(map[int]string, len(items))
+	for field, etag := range items {
+		idx, convErr := strconv.Atoi(field)
+		if convErr != nil || idx <= 0 || etag == "" {
+			continue
+		}
+		parts[idx] = etag
+	}
+	return parts, nil
+}
+
+func ClearUploadPartState(ctx context.Context, rdb svc.RedisClient, md5 string) error {
+	if md5 == "" {
+		return nil
+	}
+	return rdb.Del(ctx, BuildUploadTaskHashKey(md5)).Err()
 }
 
 func GetUploadedPartIndexes(ctx context.Context, rdb svc.RedisClient, md5 string) ([]int, error) {

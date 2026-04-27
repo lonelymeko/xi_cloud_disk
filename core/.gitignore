@@ -1,0 +1,3 @@
+deploy/systemd/*.env
+.env
+./core_linux

@@ -47,6 +47,7 @@ type StorageConfig struct {
 	Type            string // "oss" 或 "tos"
 	Region          string
 	Endpoint        string
+	PresignEndpoint string
 	AccessKeyID     string
 	AccessKeySecret string
 	BucketName      string

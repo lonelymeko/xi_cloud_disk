@@ -14,8 +14,9 @@ import (
 	"strings"
 	"time"
 
-	pdf "github.com/ledongthuc/pdf"
 	"github.com/cloudwego/eino/schema"
+	pdf "github.com/ledongthuc/pdf"
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 const (
@@ -28,6 +29,7 @@ const (
 	DefaultAttachmentBytes  = 2 << 20
 	DefaultVideoFrameCount  = 6
 	DefaultVideoHTTPTimeout = 10 * time.Minute
+	DefaultVideoAudioMIME   = "audio/mpeg"
 )
 
 type FileRef struct {
@@ -69,6 +71,12 @@ type ExtractedFrame struct {
 	TimestampSec float64
 	Base64Data   string
 	MIMEType     string
+}
+
+type ExtractedAudio struct {
+	Path       string
+	Base64Data string
+	MIMEType   string
 }
 
 func FileArrayParam(desc string) *schema.ParameterInfo {
@@ -154,6 +162,7 @@ func IsVideoLike(mimeType, fileName string) bool {
 }
 
 func FetchDocumentText(ctx context.Context, file FileRef) (string, error) {
+	start := time.Now()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, file.URL, nil)
 	if err != nil {
 		return "", err
@@ -170,6 +179,7 @@ func FetchDocumentText(ctx context.Context, file FileRef) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("read %s: %w", file.Name, err)
 	}
+	logx.Infof("document fetch stage=download_completed file=%s duration=%s bytes=%d", file.Name, time.Since(start), len(body))
 
 	mimeType := file.MIMEType
 	if mimeType == "" {
@@ -177,15 +187,23 @@ func FetchDocumentText(ctx context.Context, file FileRef) (string, error) {
 	}
 	switch {
 	case IsTextLike(mimeType, file.Name):
+		logx.Infof("document fetch stage=text_ready file=%s total_duration=%s", file.Name, time.Since(start))
 		return string(body), nil
 	case IsPDFLike(mimeType, file.Name):
-		return ExtractPDFText(file.Name, body)
+		pdfStart := time.Now()
+		content, err := ExtractPDFText(file.Name, body)
+		if err != nil {
+			return "", err
+		}
+		logx.Infof("document fetch stage=pdf_ready file=%s parse_duration=%s total_duration=%s content_len=%d", file.Name, time.Since(pdfStart), time.Since(start), len(strings.TrimSpace(content)))
+		return content, nil
 	default:
 		return "", fmt.Errorf("file %s is not a supported document format yet", file.Name)
 	}
 }
 
 func ExtractPDFText(fileName string, body []byte) (string, error) {
+	start := time.Now()
 	tmpFile, err := os.CreateTemp("", "cloud-disk-doc-*.pdf")
 	if err != nil {
 		return "", fmt.Errorf("create temp pdf for %s: %w", fileName, err)
@@ -202,13 +220,17 @@ func ExtractPDFText(fileName string, body []byte) (string, error) {
 	if err := tmpFile.Close(); err != nil {
 		return "", fmt.Errorf("close temp pdf for %s: %w", fileName, err)
 	}
+	logx.Infof("pdf extract stage=temp_written file=%s duration=%s bytes=%d", fileName, time.Since(start), len(body))
 
+	openStart := time.Now()
 	f, reader, err := pdf.Open(tmpPath)
 	if err != nil {
 		return "", fmt.Errorf("open pdf %s: %w", fileName, err)
 	}
 	defer f.Close()
+	logx.Infof("pdf extract stage=open_completed file=%s duration=%s", fileName, time.Since(openStart))
 
+	plainTextStart := time.Now()
 	textReader, err := reader.GetPlainText()
 	if err != nil {
 		return "", fmt.Errorf("extract pdf text %s: %w", fileName, err)
@@ -218,34 +240,45 @@ func ExtractPDFText(fileName string, body []byte) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("read pdf text %s: %w", fileName, err)
 	}
+	logx.Infof("pdf extract stage=plain_text_read file=%s duration=%s text_bytes=%d", fileName, time.Since(plainTextStart), len(plainText))
 	content := strings.TrimSpace(string(plainText))
 	if content == "" {
 		return "", fmt.Errorf("pdf %s does not contain extractable text; it may be scanned and require OCR", fileName)
 	}
+	logx.Infof("pdf extract stage=completed file=%s total_duration=%s content_len=%d", fileName, time.Since(start), len(content))
 	return content, nil
 }
 
 func ExtractVideoFrames(ctx context.Context, file FileRef) ([]ExtractedFrame, func(), error) {
+	frames, _, cleanup, err := ExtractVideoMedia(ctx, file)
+	return frames, cleanup, err
+}
+
+func ExtractVideoMedia(ctx context.Context, file FileRef) ([]ExtractedFrame, *ExtractedAudio, func(), error) {
+	start := time.Now()
 	if err := RequireBinary("ffmpeg"); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	if err := RequireBinary("ffprobe"); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	workDir, err := os.MkdirTemp("", "cloud-disk-video-*")
 	if err != nil {
-		return nil, nil, fmt.Errorf("create temp dir: %w", err)
+		return nil, nil, nil, fmt.Errorf("create temp dir: %w", err)
 	}
 	cleanup := func() { _ = os.RemoveAll(workDir) }
 
 	videoPath, err := DownloadVideoFile(ctx, workDir, file)
 	if err != nil {
 		cleanup()
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
+	logx.Infof("video media stage=download_completed file=%s duration=%s path=%s", file.Name, time.Since(start), videoPath)
 
+	probeStart := time.Now()
 	durationSec, _ := ProbeDuration(ctx, videoPath)
+	logx.Infof("video media stage=probe_completed file=%s duration=%s video_duration_sec=%.2f", file.Name, time.Since(probeStart), durationSec)
 	timestamps := SelectFrameTimestamps(durationSec, DefaultVideoFrameCount)
 	if len(timestamps) == 0 {
 		timestamps = []float64{1, 3, 5}
@@ -254,24 +287,34 @@ func ExtractVideoFrames(ctx context.Context, file FileRef) ([]ExtractedFrame, fu
 	framesDir := filepath.Join(workDir, "frames")
 	if err := os.MkdirAll(framesDir, 0o755); err != nil {
 		cleanup()
-		return nil, nil, fmt.Errorf("create frames dir: %w", err)
+		return nil, nil, nil, fmt.Errorf("create frames dir: %w", err)
 	}
 
 	frames := make([]ExtractedFrame, 0, len(timestamps))
 	for i, ts := range timestamps {
+		frameStart := time.Now()
 		framePath := filepath.Join(framesDir, fmt.Sprintf("frame-%03d.jpg", i+1))
 		if err := CaptureFrame(ctx, videoPath, ts, framePath); err != nil {
 			cleanup()
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		frame, err := LoadFrame(i+1, ts, framePath)
 		if err != nil {
 			cleanup()
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		frames = append(frames, frame)
+		logx.Infof("video media stage=frame_completed file=%s frame=%d timestamp_sec=%.2f duration=%s", file.Name, i+1, ts, time.Since(frameStart))
 	}
-	return frames, cleanup, nil
+
+	audioStart := time.Now()
+	audio, err := ExtractAudioIfExists(ctx, videoPath, workDir)
+	if err != nil {
+		cleanup()
+		return nil, nil, nil, err
+	}
+	logx.Infof("video media stage=audio_completed file=%s duration=%s has_audio=%t total_duration=%s", file.Name, time.Since(audioStart), audio != nil, time.Since(start))
+	return frames, audio, cleanup, nil
 }
 
 func DownloadVideoFile(ctx context.Context, workDir string, file FileRef) (string, error) {
@@ -392,9 +435,67 @@ func LoadFrame(index int, timestampSec float64, framePath string) (ExtractedFram
 	}, nil
 }
 
+func ExtractAudioIfExists(ctx context.Context, videoPath, workDir string) (*ExtractedAudio, error) {
+	hasAudio, err := HasAudioStream(ctx, videoPath)
+	if err != nil {
+		return nil, err
+	}
+	if !hasAudio {
+		return nil, nil
+	}
+
+	audioPath := filepath.Join(workDir, "audio.mp3")
+	cmd := exec.CommandContext(ctx, "ffmpeg",
+		"-y",
+		"-i", videoPath,
+		"-vn",
+		"-ac", "1",
+		"-ar", "16000",
+		audioPath,
+	)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("extract audio: %w (%s)", err, strings.TrimSpace(string(output)))
+	}
+
+	data, err := os.ReadFile(audioPath)
+	if err != nil {
+		return nil, fmt.Errorf("read extracted audio: %w", err)
+	}
+
+	return &ExtractedAudio{
+		Path:       audioPath,
+		Base64Data: base64.StdEncoding.EncodeToString(data),
+		MIMEType:   DefaultVideoAudioMIME,
+	}, nil
+}
+
+func HasAudioStream(ctx context.Context, videoPath string) (bool, error) {
+	cmd := exec.CommandContext(ctx, "ffprobe",
+		"-v", "error",
+		"-select_streams", "a",
+		"-show_entries", "stream=codec_type",
+		"-of", "csv=p=0",
+		videoPath,
+	)
+	output, err := cmd.Output()
+	if err != nil {
+		return false, fmt.Errorf("probe audio stream: %w", err)
+	}
+	return strings.TrimSpace(string(output)) != "", nil
+}
+
 func RequireBinary(name string) error {
 	if _, err := exec.LookPath(name); err != nil {
 		return fmt.Errorf("%s is required but was not found in PATH", name)
 	}
 	return nil
+}
+
+func trimToolContent(content string, maxLen int) string {
+	content = strings.TrimSpace(content)
+	if maxLen <= 0 || len(content) <= maxLen {
+		return content
+	}
+	return strings.TrimSpace(content[:maxLen]) + "\n...[truncated]"
 }

@@ -1,11 +1,16 @@
 package handler
 
 import (
+	"cloud_disk/core/internal/agent/einoagent"
 	"cloud_disk/core/internal/svc"
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 )
 
 // TestHandlersParseError 验证请求解析失败的处理。
@@ -85,5 +90,52 @@ func TestHealthHandler(t *testing.T) {
 	HealthHandler(svcCtx).ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status mismatch: %d", rec.Code)
+	}
+}
+
+func TestStreamAgentWritesReadyAndHeartbeat(t *testing.T) {
+	oldInterval := agentStreamHeartbeatInterval
+	agentStreamHeartbeatInterval = 5 * time.Millisecond
+	t.Cleanup(func() { agentStreamHeartbeatInterval = oldInterval })
+
+	req := httptest.NewRequest(http.MethodPost, "/stream", nil)
+	rec := httptest.NewRecorder()
+
+	streamAgent(rec, req, func(emit func(chunk einoagent.StreamChunk) error) error {
+		time.Sleep(12 * time.Millisecond)
+		return emit(einoagent.StreamChunk{Type: "done", Reply: "ok"})
+	})
+
+	body := rec.Body.String()
+	if !strings.Contains(body, `"type":"stream_ready"`) {
+		t.Fatalf("expected stream_ready event, got %s", body)
+	}
+	if !strings.Contains(body, `"type":"heartbeat"`) {
+		t.Fatalf("expected heartbeat event, got %s", body)
+	}
+	if !strings.Contains(body, `"type":"done"`) {
+		t.Fatalf("expected done event, got %s", body)
+	}
+}
+
+func TestIsClientGone(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{name: "nil", err: nil, want: false},
+		{name: "context canceled", err: context.Canceled, want: true},
+		{name: "broken pipe", err: syscall.EPIPE, want: true},
+		{name: "connection reset", err: syscall.ECONNRESET, want: true},
+		{name: "normal error", err: errors.New("boom"), want: false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := isClientGone(tc.err); got != tc.want {
+				t.Fatalf("isClientGone(%v)=%v want %v", tc.err, got, tc.want)
+			}
+		})
 	}
 }

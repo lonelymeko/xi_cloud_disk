@@ -36,6 +36,7 @@ func InitializeStorage() error {
 		if cfg.Endpoint == "" {
 			return fmt.Errorf("VOLCENGINE_ENDPOINT not set for TOS storage")
 		}
+		cfg.PresignEndpoint = os.Getenv("VOLCENGINE_PRESIGN_ENDPOINT")
 
 		cfg.BucketName = os.Getenv("VOLCENGINE_BUCKET_NAME")
 		if cfg.BucketName == "" {

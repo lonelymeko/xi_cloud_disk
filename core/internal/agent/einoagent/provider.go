@@ -26,6 +26,7 @@ import (
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	"github.com/google/uuid"
+	"github.com/zeromicro/go-zero/core/logx"
 	"xorm.io/xorm"
 )
 
@@ -396,6 +397,11 @@ func (p *provider) Chat(ctx context.Context, userIdentity string, req ChatReques
 }
 
 func (p *provider) StreamChat(ctx context.Context, userIdentity string, req ChatRequest, emit func(StreamChunk) error) (*ChatResponse, error) {
+	begin := time.Now()
+	logx.Infof("agent stream chat start: session_id=%s user=%s attachments=%d message_len=%d", strings.TrimSpace(req.SessionID), userIdentity, len(req.Attachments), len(strings.TrimSpace(req.Message)))
+	defer func() {
+		logx.Infof("agent stream chat finished: session_id=%s user=%s duration=%s", strings.TrimSpace(req.SessionID), userIdentity, time.Since(begin))
+	}()
 	if !p.Enabled() {
 		return nil, errors.New("agent is disabled")
 	}
@@ -411,6 +417,7 @@ func (p *provider) StreamChat(ctx context.Context, userIdentity string, req Chat
 	if err != nil {
 		return nil, err
 	}
+	logx.Infof("agent stream chat stage=load_session session_id=%s user=%s duration=%s", sessionID, userIdentity, time.Since(begin))
 	p.sessions.mu.Lock()
 	if state.pendingInterrupt != "" {
 		p.sessions.mu.Unlock()
@@ -432,6 +439,7 @@ func (p *provider) StreamChat(ctx context.Context, userIdentity string, req Chat
 	if err := p.upsertSessionRecord(userIdentity, state); err != nil {
 		return nil, err
 	}
+	logx.Infof("agent stream chat stage=persist_user_message session_id=%s user=%s duration=%s", sessionID, userIdentity, time.Since(begin))
 
 	if emit != nil {
 		if err := emit(StreamChunk{Type: "session", Session: &currentSession}); err != nil {
@@ -445,10 +453,13 @@ func (p *provider) StreamChat(ctx context.Context, userIdentity string, req Chat
 	}
 
 	iter := p.runner.Run(ctx, history, adk.WithCheckPointID(checkpointKey(userIdentity, sessionID)))
+	logx.Infof("agent stream chat stage=runner_started session_id=%s user=%s duration=%s", sessionID, userIdentity, time.Since(begin))
 	reply, events, interrupt, err := streamRunResult(iter, emit)
 	if err != nil {
+		logx.Errorf("agent stream chat stage=runner_failed session_id=%s user=%s duration=%s err=%v", sessionID, userIdentity, time.Since(begin), err)
 		return nil, err
 	}
+	logx.Infof("agent stream chat stage=runner_completed session_id=%s user=%s duration=%s events=%d interrupt=%t reply_len=%d", sessionID, userIdentity, time.Since(begin), len(events), interrupt != nil, len(reply))
 
 	p.sessions.mu.Lock()
 	defer p.sessions.mu.Unlock()
@@ -469,6 +480,7 @@ func (p *provider) StreamChat(ctx context.Context, userIdentity string, req Chat
 	if err := p.upsertSessionRecord(userIdentity, state); err != nil {
 		return nil, err
 	}
+	logx.Infof("agent stream chat stage=finalize_session session_id=%s user=%s duration=%s", sessionID, userIdentity, time.Since(begin))
 
 	resp := &ChatResponse{
 		Session:          toSession(state),
@@ -558,24 +570,32 @@ func (p *provider) Resume(ctx context.Context, userIdentity string, req ResumeRe
 }
 
 func (p *provider) StreamResume(ctx context.Context, userIdentity string, req ResumeRequest, emit func(StreamChunk) error) (*ChatResponse, error) {
+	begin := time.Now()
+	sessionID := strings.TrimSpace(req.SessionID)
+	interruptID := strings.TrimSpace(req.InterruptID)
+	logx.Infof("agent stream resume start: session_id=%s interrupt_id=%s user=%s approved=%t", sessionID, interruptID, userIdentity, req.Approved)
+	defer func() {
+		logx.Infof("agent stream resume finished: session_id=%s interrupt_id=%s user=%s duration=%s", sessionID, interruptID, userIdentity, time.Since(begin))
+	}()
 	if !p.Enabled() {
 		return nil, errors.New("agent is disabled")
 	}
-	if strings.TrimSpace(req.SessionID) == "" || strings.TrimSpace(req.InterruptID) == "" {
+	if sessionID == "" || interruptID == "" {
 		return nil, errors.New("session_id and interrupt_id are required")
 	}
 
-	state, err := p.loadSessionState(userIdentity, req.SessionID, false)
+	state, err := p.loadSessionState(userIdentity, sessionID, false)
 	if err != nil {
 		return nil, err
 	}
+	logx.Infof("agent stream resume stage=load_session session_id=%s interrupt_id=%s user=%s duration=%s", sessionID, interruptID, userIdentity, time.Since(begin))
 	if state == nil {
 		return nil, errors.New("session not found")
 	}
 	if state.pendingInterrupt == "" {
 		return nil, errors.New("session has no pending interrupt")
 	}
-	if state.pendingInterrupt != req.InterruptID {
+	if state.pendingInterrupt != interruptID {
 		return nil, errors.New("interrupt_id mismatch")
 	}
 
@@ -584,9 +604,9 @@ func (p *provider) StreamResume(ctx context.Context, userIdentity string, req Re
 		reason := strings.TrimSpace(req.Reason)
 		denyReason = &reason
 	}
-	iter, err := p.runner.ResumeWithParams(ctx, checkpointKey(userIdentity, req.SessionID), &adk.ResumeParams{
+	iter, err := p.runner.ResumeWithParams(ctx, checkpointKey(userIdentity, sessionID), &adk.ResumeParams{
 		Targets: map[string]any{
-			req.InterruptID: &approvalResult{
+			interruptID: &approvalResult{
 				Approved:         req.Approved,
 				DisapproveReason: denyReason,
 			},
@@ -595,15 +615,18 @@ func (p *provider) StreamResume(ctx context.Context, userIdentity string, req Re
 	if err != nil {
 		return nil, err
 	}
+	logx.Infof("agent stream resume stage=runner_resumed session_id=%s interrupt_id=%s user=%s duration=%s", sessionID, interruptID, userIdentity, time.Since(begin))
 
 	reply, events, interrupt, err := streamRunResult(iter, emit)
 	if err != nil {
+		logx.Errorf("agent stream resume stage=runner_failed session_id=%s interrupt_id=%s user=%s duration=%s err=%v", sessionID, interruptID, userIdentity, time.Since(begin), err)
 		return nil, err
 	}
+	logx.Infof("agent stream resume stage=runner_completed session_id=%s interrupt_id=%s user=%s duration=%s events=%d interrupt=%t reply_len=%d", sessionID, interruptID, userIdentity, time.Since(begin), len(events), interrupt != nil, len(reply))
 
 	p.sessions.mu.Lock()
 	defer p.sessions.mu.Unlock()
-	state = p.sessions.getOrCreateLocked(userIdentity, req.SessionID)
+	state = p.sessions.getOrCreateLocked(userIdentity, sessionID)
 	state.updatedAt = time.Now()
 	if interrupt != nil {
 		state.pendingInterrupt = interrupt.InterruptID
@@ -612,7 +635,7 @@ func (p *provider) StreamResume(ctx context.Context, userIdentity string, req Re
 		if strings.TrimSpace(reply) != "" {
 			assistant := schema.AssistantMessage(reply, nil)
 			state.messages = append(state.messages, assistant)
-			if err := p.appendSessionMessage(userIdentity, req.SessionID, assistant); err != nil {
+			if err := p.appendSessionMessage(userIdentity, sessionID, assistant); err != nil {
 				return nil, err
 			}
 		}
@@ -620,6 +643,7 @@ func (p *provider) StreamResume(ctx context.Context, userIdentity string, req Re
 	if err := p.upsertSessionRecord(userIdentity, state); err != nil {
 		return nil, err
 	}
+	logx.Infof("agent stream resume stage=finalize_session session_id=%s interrupt_id=%s user=%s duration=%s", sessionID, interruptID, userIdentity, time.Since(begin))
 
 	resp := &ChatResponse{
 		Session:          toSession(state),
@@ -695,28 +719,44 @@ func (m *approvalMiddleware) WrapStreamableToolCall(_ context.Context, endpoint 
 	}, nil
 }
 
-func (m *safeToolMiddleware) WrapInvokableToolCall(_ context.Context, endpoint adk.InvokableToolCallEndpoint, _ *adk.ToolContext) (adk.InvokableToolCallEndpoint, error) {
+func (m *safeToolMiddleware) WrapInvokableToolCall(_ context.Context, endpoint adk.InvokableToolCallEndpoint, tCtx *adk.ToolContext) (adk.InvokableToolCallEndpoint, error) {
 	return func(ctx context.Context, args string, opts ...einotool.Option) (string, error) {
+		start := time.Now()
+		toolName := "unknown"
+		if tCtx != nil && strings.TrimSpace(tCtx.Name) != "" {
+			toolName = tCtx.Name
+		}
+		logx.Infof("agent tool start: tool=%s mode=invoke args_len=%d", toolName, len(strings.TrimSpace(args)))
 		result, err := endpoint(ctx, args, opts...)
 		if err != nil {
+			logx.Errorf("agent tool failed: tool=%s mode=invoke duration=%s err=%v", toolName, time.Since(start), err)
 			if _, ok := compose.IsInterruptRerunError(err); ok {
 				return "", err
 			}
 			return fmt.Sprintf("[tool error] %v", err), nil
 		}
+		logx.Infof("agent tool completed: tool=%s mode=invoke duration=%s result_len=%d", toolName, time.Since(start), len(strings.TrimSpace(result)))
 		return result, nil
 	}, nil
 }
 
-func (m *safeToolMiddleware) WrapStreamableToolCall(_ context.Context, endpoint adk.StreamableToolCallEndpoint, _ *adk.ToolContext) (adk.StreamableToolCallEndpoint, error) {
+func (m *safeToolMiddleware) WrapStreamableToolCall(_ context.Context, endpoint adk.StreamableToolCallEndpoint, tCtx *adk.ToolContext) (adk.StreamableToolCallEndpoint, error) {
 	return func(ctx context.Context, args string, opts ...einotool.Option) (*schema.StreamReader[string], error) {
+		start := time.Now()
+		toolName := "unknown"
+		if tCtx != nil && strings.TrimSpace(tCtx.Name) != "" {
+			toolName = tCtx.Name
+		}
+		logx.Infof("agent tool start: tool=%s mode=stream args_len=%d", toolName, len(strings.TrimSpace(args)))
 		sr, err := endpoint(ctx, args, opts...)
 		if err != nil {
+			logx.Errorf("agent tool failed: tool=%s mode=stream duration=%s err=%v", toolName, time.Since(start), err)
 			if _, ok := compose.IsInterruptRerunError(err); ok {
 				return nil, err
 			}
 			return singleChunkReader(fmt.Sprintf("[tool error] %v", err)), nil
 		}
+		logx.Infof("agent tool stream ready: tool=%s mode=stream duration=%s", toolName, time.Since(start))
 		return safeWrapReader(sr), nil
 	}, nil
 }
@@ -780,11 +820,18 @@ func streamRunResult(iter *adk.AsyncIterator[*adk.AgentEvent], emit func(StreamC
 		events  []ChatEvent
 		pending *PendingInterrupt
 	)
+	start := time.Now()
+	lastEventAt := start
+	eventCount := 0
 	for {
 		event, ok := iter.Next()
 		if !ok {
 			break
 		}
+		eventCount++
+		now := time.Now()
+		logx.Infof("agent stream event: index=%d since_start=%s idle=%s has_err=%t has_action=%t has_output=%t", eventCount, now.Sub(start), now.Sub(lastEventAt), event.Err != nil, event.Action != nil, event.Output != nil)
+		lastEventAt = now
 		if event.Err != nil {
 			if emit != nil {
 				_ = emit(StreamChunk{Type: "error", Error: event.Err.Error()})
@@ -797,6 +844,7 @@ func streamRunResult(iter *adk.AsyncIterator[*adk.AgentEvent], emit func(StreamC
 					continue
 				}
 				if info, ok := ic.Info.(*approvalInfo); ok {
+					logx.Infof("agent stream approval required: interrupt_id=%s tool=%s since_start=%s", ic.ID, info.ToolName, time.Since(start))
 					pending = &PendingInterrupt{InterruptID: ic.ID, ToolName: info.ToolName, ArgumentsJSON: info.ArgumentsInJSON}
 					events = append(events, ChatEvent{Type: "approval_required", ToolName: info.ToolName, ArgumentsJSON: info.ArgumentsInJSON})
 					if emit != nil {
@@ -815,7 +863,9 @@ func streamRunResult(iter *adk.AsyncIterator[*adk.AgentEvent], emit func(StreamC
 		mv := event.Output.MessageOutput
 		switch mv.Role {
 		case schema.Tool:
+			toolStageStart := time.Now()
 			content := drainMessageVariant(mv)
+			logx.Infof("agent stream tool output drained: duration=%s content_len=%d", time.Since(toolStageStart), len(strings.TrimSpace(content)))
 			events = append(events, ChatEvent{Type: "tool_result", Role: "tool", Content: content})
 			if emit != nil {
 				if err := emit(StreamChunk{Type: "tool_result", Role: "tool", Content: content}); err != nil {
@@ -823,6 +873,7 @@ func streamRunResult(iter *adk.AsyncIterator[*adk.AgentEvent], emit func(StreamC
 				}
 			}
 		case schema.Assistant, "":
+			assistantStageStart := time.Now()
 			content, toolCalls, err := streamAssistantOutput(mv, func(chunk string) error {
 				reply.WriteString(chunk)
 				if emit != nil {
@@ -833,6 +884,7 @@ func streamRunResult(iter *adk.AsyncIterator[*adk.AgentEvent], emit func(StreamC
 			if err != nil {
 				return "", nil, nil, err
 			}
+			logx.Infof("agent stream assistant output drained: duration=%s content_len=%d tool_calls=%d", time.Since(assistantStageStart), len(strings.TrimSpace(content)), len(toolCalls))
 			for _, tc := range toolCalls {
 				events = append(events, ChatEvent{Type: "tool_call", ToolName: tc.Function.Name, ArgumentsJSON: tc.Function.Arguments})
 				if emit != nil {
